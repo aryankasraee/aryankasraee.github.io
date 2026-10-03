@@ -1,0 +1,25 @@
+---
+import Section from "./Section.astro";
+import { siteConfig } from "../config";
+---
+
+<Section id="skills" title="Skills">
+  <dl class="space-y-5">
+    {
+      siteConfig.skills.map((g) => (
+        <div class="grid gap-2 sm:grid-cols-[13rem_1fr] sm:gap-6">
+          <dt class="font-semibold">{g.label}</dt>
+          <dd>
+            <ul class="flex flex-wrap gap-2">
+              {g.items.map((s) => (
+                <li class="rounded-md bg-neutral-100 px-3 py-1 text-sm font-medium text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100">
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+</Section>
