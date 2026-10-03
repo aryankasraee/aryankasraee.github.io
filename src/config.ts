@@ -20,7 +20,6 @@ type SkillGroup = {
 export const siteConfig = {
   name: "Aryan Kasraee",
   title: "DevOps / SRE Engineer",
-  location: "Istanbul, Türkiye",
   description:
     "Aryan Kasraee is a DevOps/SRE engineer focused on Kubernetes, CI/CD, GitOps and highly available infrastructure.",
   tagline:
