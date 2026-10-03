@@ -54,11 +54,46 @@ export const siteConfig = {
   ] as SkillGroup[],
   projects: [
     {
+      name: "patroni-ha-lab",
+      description:
+        "A three-node PostgreSQL cluster (Patroni, etcd, HAProxy) you can break on purpose. A drill kills the primary under write load and measures what clients see: 0 acknowledged writes lost, about 17 seconds without writes. A second drill restores a replica backup into a clean container and compares row counts.",
+      link: "https://github.com/aryankasraee/patroni-ha-lab",
+      skills: ["PostgreSQL", "Patroni", "HAProxy", "Docker Compose"],
+    },
+    {
+      name: "gitops-platform",
+      description:
+        "GitOps on a laptop: a kind cluster with Argo CD app-of-apps, dev and staging from one set of Kustomize manifests, default-deny network policies and Pod Security. Guardrails are checked statically in CI, then proven on a live cluster.",
+      link: "https://github.com/aryankasraee/gitops-platform",
+      skills: ["Kubernetes", "Argo CD", "Kustomize", "Network policy"],
+    },
+    {
+      name: "sre-observability",
+      description:
+        "A service that fails on purpose and the monitoring that must notice. Multi-window, multi-burn-rate SLO alerts with promtool unit tests (checked by mutation), Alertmanager routing, Loki logs, and a live chaos drill: the alert fires in about 20 seconds in the lab profile.",
+      link: "https://github.com/aryankasraee/sre-observability",
+      skills: ["Prometheus", "Alertmanager", "Grafana", "Loki", "SLOs"],
+    },
+    {
+      name: "tls-edge-on-demand",
+      description:
+        "A multi-tenant HTTPS edge that issues certificates on first visit and refuses names it was never told about. The drill shows what the allowlist gate prevents: 0 certificate orders versus 30 for the same flood of random names.",
+      link: "https://github.com/aryankasraee/tls-edge-on-demand",
+      skills: ["Caddy", "TLS", "Multi-tenancy"],
+    },
+    {
       name: "ci-cd-reference",
       description:
         "A working CI/CD reference for a multi-module Go monorepo: toolchain preflight, secret scanning, lint and test matrices, image builds with SBOMs, and a watchdog that alerts when main is red or untested.",
       link: "https://github.com/aryankasraee/ci-cd-reference",
       skills: ["GitHub Actions", "Go", "Docker", "SBOM"],
+    },
+    {
+      name: "sre-runbooks",
+      description:
+        "Runbooks and a postmortem template for 3 a.m. use. Each runbook states how it was verified, and CI enforces the template and checks links.",
+      link: "https://github.com/aryankasraee/sre-runbooks",
+      skills: ["Incident response", "Runbooks", "Postmortems"],
     },
   ] as Project[],
   experience: [
