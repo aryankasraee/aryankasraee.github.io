@@ -139,7 +139,7 @@ export const siteConfig = {
       bullets: [
         "Deployed and managed Kubernetes clusters for development, staging, and production",
         "Built and maintained CI/CD pipelines to speed up delivery across environments",
-        "Built a scalable BigBlueButton-based streaming platform that supported 10,000+ concurrent users at peak",
+        "Built a scalable BigBlueButton-based live streaming platform for online classes",
       ],
     },
   ] as Experience[],
