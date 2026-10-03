@@ -5,13 +5,6 @@ type Project = {
   skills: string[];
 };
 
-type Education = {
-  school: string;
-  degree: string;
-  dateRange: string;
-  achievements: string[];
-};
-
 type Experience = {
   company: string;
   title: string;
@@ -19,34 +12,56 @@ type Experience = {
   bullets: string[];
 };
 
+type SkillGroup = {
+  label: string;
+  items: string[];
+};
+
 export const siteConfig = {
   name: "Aryan Kasraee",
   title: "DevOps / SRE Engineer",
+  location: "Istanbul, Türkiye",
   description:
     "Aryan Kasraee is a DevOps/SRE engineer focused on Kubernetes, CI/CD, GitOps and highly available infrastructure.",
-  accentColor: "#1d4ed8",
+  tagline:
+    "I keep production infrastructure boring: Kubernetes, GitOps, highly available data layers, and CI/CD that tells the truth.",
   social: {
     email: "aryankasraee@gmail.com",
     linkedin: "https://www.linkedin.com/in/aryan-kasraee",
     twitter: "https://x.com/aryankasraee",
     github: "https://github.com/aryankasraee",
   },
-  aboutMe:
-    "DevOps/SRE engineer focused on platform reliability for multi-tenant SaaS. I design, run, and own production infrastructure end to end: Kubernetes, GitOps delivery, and highly available data layers (PostgreSQL with Patroni, MongoDB replica sets, Valkey with Sentinel). I care about what happens when things fail: failover design, backup and restore drills, and centralized logging and alerting that cuts time to detect. I automate everything repeatable, and I write the runbooks for what isn't.",
-  skills: [
-    "Kubernetes",
-    "CI/CD",
-    "GitOps",
-    "Linux",
-    "Docker",
-    "PostgreSQL / Patroni",
-    "MongoDB",
-    "Valkey",
-    "Prometheus / Grafana",
-    "Jenkins",
-    "Python",
+  aboutMe: [
+    "DevOps/SRE engineer focused on platform reliability for multi-tenant SaaS. I design, run, and own production infrastructure end to end: Kubernetes, GitOps delivery, and highly available data layers (PostgreSQL with Patroni, MongoDB replica sets, Valkey with Sentinel).",
+    "I care about what happens when things fail: failover design, backup and restore drills, and centralized logging and alerting that cuts time to detect. I automate everything repeatable, and I write the runbooks for what isn't.",
   ],
-  projects: [] as Project[],
+  skills: [
+    {
+      label: "Orchestration & delivery",
+      items: ["Kubernetes", "Docker", "GitOps", "CI/CD", "Jenkins", "GitHub Actions"],
+    },
+    {
+      label: "Data & high availability",
+      items: ["PostgreSQL / Patroni", "MongoDB replica sets", "Valkey / Sentinel", "Backup & restore"],
+    },
+    {
+      label: "Observability",
+      items: ["Prometheus", "Grafana", "Centralized logging", "Alerting"],
+    },
+    {
+      label: "Systems",
+      items: ["Linux", "PowerDNS", "Networking", "Python"],
+    },
+  ] as SkillGroup[],
+  projects: [
+    {
+      name: "ci-cd-reference",
+      description:
+        "A working CI/CD reference for a multi-module Go monorepo: toolchain preflight, secret scanning, lint and test matrices, image builds with SBOMs, and a watchdog that alerts when main is red or untested.",
+      link: "https://github.com/aryankasraee/ci-cd-reference",
+      skills: ["GitHub Actions", "Go", "Docker", "SBOM"],
+    },
+  ] as Project[],
   experience: [
     {
       company: "Classeh | School Management Platform",
@@ -94,5 +109,4 @@ export const siteConfig = {
       ],
     },
   ] as Experience[],
-  education: [] as Education[],
 };
