@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aryan Kasraee — Control Room</title>
+<meta name="description" content="Aryan Kasraee, DevOps / SRE engineer. A 3D walk through the infrastructure he runs, a replayable failover drill, and the labs that prove it.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://aryankasraee.ir/">
+<meta property="og:title" content="Aryan Kasraee · DevOps / SRE engineer">
+<meta property="og:description" content="I break things on purpose, so production doesn't. Follow one request through the infrastructure I run, replay a database failover, and see seven public labs.">
+<meta property="og:image" content="https://aryankasraee.ir/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#030508">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="canonical" href="https://aryankasraee.ir/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: a night-ops city in WebGL stays fixed behind the page. Normal scrolling moves
+   the camera district by district (edge, platform, data, observability, delivery) while
+   glass panels carry all the real content in the DOM. Single dark theme by choice. */
+:root {
+  color-scheme: dark;
+  --ground: #06090c;
+  --glass: rgba(9, 14, 19, .80);
+  --glass-line: rgba(219, 228, 234, .09);
+  --line: #1f2d37;
+  --ink: #e2e9ee;
+  --dim: #8fa1ad;
+  --signal: #f2b650;           /* amber: traffic and actions only */
+  --signal-soft: rgba(242, 182, 80, .13);
+  --ok: #5fd39a;               /* healthy only */
+  --info: #6cc4e8;             /* structure and links */
+  --alert: #ff5a4f;            /* the incident */
+  --font-display: "Chakra Petch", "Rajdhani", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); scroll-behavior: smooth; scroll-padding-top: 64px; }
+body { margin: 0; overflow-x: clip; background: var(--ground); color: var(--ink); font: 400 1rem/1.6 var(--font-body); -webkit-font-smoothing: antialiased; }
+a { color: var(--info); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 4px; }
+section { scroll-margin-top: 64px; }
+code { font-family: var(--font-data); font-size: .88em; color: var(--ink); }
+
+/* WebGL world */
+#world { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; }
+.vignette { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 65% 45%, transparent 40%, rgba(6, 9, 12, .55) 75%, rgba(6, 9, 12, .9)); }
+body.no3d #world { display: none; }
+body.no3d .vignette { background:
+  radial-gradient(60% 50% at 70% 40%, rgba(108, 196, 232, .10), transparent 70%),
+  repeating-linear-gradient(0deg, rgba(108, 196, 232, .05) 0 1px, transparent 1px 48px),
+  repeating-linear-gradient(90deg, rgba(108, 196, 232, .05) 0 1px, transparent 1px 48px), var(--ground); }
+
+/* strip */
+.strip { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: rgba(6, 9, 12, .82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--glass-line); }
+.strip-inner { max-width: 1280px; margin: 0 auto; padding: 0 20px; height: 48px; display: flex; align-items: center; gap: 18px; font: 500 .78rem/1 var(--font-data); color: var(--dim); white-space: nowrap; }
+.strip b { color: var(--ink); font-weight: 500; }
+.led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 10px var(--ok); margin-right: 8px; }
+.strip .grow { flex: 1; }
+.strip a { color: var(--dim); }
+.strip a:hover { color: var(--ink); text-decoration: none; }
+.strip .avail { color: var(--ok); }
+.chapters-nav { display: flex; gap: 4px; }
+.chapters-nav a { padding: 6px 8px; border-radius: 4px; }
+.chapters-nav a.on { color: var(--ink); background: rgba(108, 196, 232, .12); }
+
+/* page column */
+main { position: relative; z-index: 1; }
+.col { max-width: 1280px; margin: 0 auto; padding-inline: 20px; }
+.chapter { min-height: 100svh; display: flex; align-items: center; padding-block: 12vh; }
+.panel { width: min(100%, 520px); background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-line); border-radius: 6px; padding: 26px 26px 24px; display: grid; gap: 14px; }
+.panel.wide { width: min(100%, 760px); }
+.panel.xwide { width: min(100%, 1000px); }
+.label { font: 500 .72rem/1.5 var(--font-data); letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+.label .n { color: var(--signal); }
+h2 { font: 700 clamp(1.9rem, 3.4vw, 2.7rem)/1.02 var(--font-display); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.plain { font-size: 1.08rem; color: var(--ink); margin: 0; }
+.tech { color: var(--dim); margin: 0; font-size: .95rem; }
+.big { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.big .num { font: 700 clamp(3rem, 6.4vw, 5.2rem)/.9 var(--font-data); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.big .unit { font: 500 1rem/1.3 var(--font-data); color: var(--dim); max-width: 26ch; }
+.facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.facts li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; font-size: .93rem; color: var(--dim); }
+.facts li b { font: 600 .66rem/1.9 var(--font-data); letter-spacing: .1em; text-transform: uppercase; }
+.facts li b.p { color: var(--ok); } .facts li b.l { color: var(--info); }
+.facts li span strong { color: var(--ink); font-weight: 500; }
+.lesson { border-left: 2px solid var(--signal); padding: 4px 0 4px 12px; font-size: .9rem; color: var(--ink); }
+.lesson > b { display: block; font: 600 .68rem/1.6 var(--font-data); letter-spacing: .12em; text-transform: uppercase; color: var(--signal); }
+.links { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.btn { font: 600 .82rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; padding: 12px 14px; border-radius: 4px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, .03); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.btn:hover { border-color: var(--info); text-decoration: none; }
+.btn.primary { background: var(--signal); color: #1a1205; border-color: var(--signal); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { background: rgba(255, 90, 79, .12); color: #ffb3ad; border-color: rgba(255, 90, 79, .6); }
+.btn.danger:hover { background: rgba(255, 90, 79, .22); border-color: var(--alert); }
+.btn[disabled], .btn[aria-disabled="true"] { opacity: .55; cursor: default; }
+
+/* hero */
+.hero { position: relative; min-height: calc(100svh - 48px); display: grid; align-content: center; padding-block: 8vh 6vh; }
+.hero::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(50% - 50vw); width: 100vw; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(3,5,8,.92) 0%, rgba(3,5,8,.82) 38%, rgba(3,5,8,.35) 58%, transparent 72%); }
+.hero > * { position: relative; }
+.eyebrow { font: 500 .78rem/1.3 var(--font-data); letter-spacing: .18em; text-transform: uppercase; color: var(--signal); }
+h1 { font: 700 clamp(2.3rem, 7.4vw, 6.6rem)/.93 var(--font-display); letter-spacing: -.025em; margin: 18px 0 22px; max-width: 13ch; text-wrap: balance; }
+h1 .line { display: block; overflow: hidden; padding-bottom: .04em; }
+h1 .line span { display: inline-block; animation: rise .9s var(--ease-out) both; }
+h1 .line:nth-child(2) span { animation-delay: .09s; } h1 .line:nth-child(3) span { animation-delay: .18s; }
+h1 em { font-style: normal; color: var(--signal); }
+@keyframes rise { from { transform: translateY(105%); } to { transform: none; } }
+.hero .value { max-width: 58ch; font-size: clamp(1.02rem, 1.5vw, 1.2rem); color: var(--dim); margin: 0 0 26px; }
+.hero .value strong { color: var(--ink); font-weight: 500; }
+.scroll-cue { margin-top: 34px; font: 500 .74rem/1 var(--font-data); color: var(--dim); letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+.scroll-cue i { width: 1px; height: 34px; background: linear-gradient(var(--signal), transparent); animation: cue 1.8s ease-in-out infinite; transform-origin: top; }
+@keyframes cue { 0%, 100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
+
+/* 30-second card */
+.summary { padding-block: 4vh 8vh; }
+.card30 { background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid var(--glass-line); border-radius: 6px; padding: 22px; display: grid; gap: 18px; }
+.card30 header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: baseline; }
+.card30 h2 { font-size: clamp(1.4rem, 2.4vw, 1.8rem); }
+.kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--glass-line); border: 1px solid var(--glass-line); border-radius: 4px; overflow: hidden; margin: 0; }
+.kv div { background: rgba(9, 14, 19, .92); padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.kv dt { font: 500 .68rem/1 var(--font-data); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.kv dd { margin: 0; font-size: .98rem; color: var(--ink); }
+.kv dd small { display: block; color: var(--dim); font-size: .82rem; margin-top: 2px; }
+.keywords { font: 400 .84rem/1.7 var(--font-data); color: var(--dim); margin: 0; }
+.keywords b { color: var(--ink); font-weight: 500; }
+
+/* incident simulator */
+.sim { display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(255, 90, 79, .25); border-radius: 5px; background: rgba(20, 10, 10, .35); }
+.sim-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.timer { font: 700 2.2rem/1 var(--font-data); font-variant-numeric: tabular-nums; color: var(--ink); }
+.timer small { font-size: .78rem; color: var(--dim); font-weight: 400; margin-left: 6px; }
+.timer.bad { color: var(--alert); } .timer.good { color: var(--ok); }
+.sim svg { width: 100%; height: 72px; display: block; }
+.chart-wrap { position: relative; }
+.gap-label { position: absolute; top: 30px; transform: translateX(-50%); font: 500 .72rem/1 var(--font-data); color: #ffb3ad; white-space: nowrap; pointer-events: none; }
+.axis-row { position: relative; height: 14px; }
+.axis-row span { position: absolute; transform: translateX(-50%); font: 400 .66rem/1 var(--font-data); color: var(--dim); }
+.sim .bar { fill: var(--info); }
+.sim .gapbox { fill: rgba(255, 90, 79, .10); stroke: rgba(255, 90, 79, .5); stroke-dasharray: 3 3; }
+.simlog { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font: 400 .78rem/1.45 var(--font-data); color: var(--dim); min-height: 13.5em; align-content: start; }
+.simlog li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; }
+.simlog li.alert { color: #ffb3ad; } .simlog li.ok { color: var(--ok); } .simlog li.info { color: var(--ink); }
+.sim-note { font: 400 .72rem/1.4 var(--font-data); color: var(--dim); margin: 0; }
+
+/* incident write-up */
+.tl { list-style: none; margin: 10px 0 0; padding: 0; display: grid; }
+.tl li { display: grid; grid-template-columns: 92px 14px minmax(0, 1fr); gap: 10px; font-size: .9rem; color: var(--dim); }
+.tl li time { font: 500 .76rem/1.7 var(--font-data); color: var(--ink); font-variant-numeric: tabular-nums; }
+.tl li i { position: relative; }
+.tl li i::before { content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.tl li i::after { content: ""; position: absolute; left: 1px; top: 8px; width: 10px; height: 10px; border-radius: 50%; background: var(--info); }
+.tl li.bad i::after { background: var(--alert); } .tl li.good i::after { background: var(--ok); }
+.tl li span { padding-bottom: 12px; }
+
+/* career */
+.career { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 6px; }
+.cs { position: relative; display: grid; gap: 7px; justify-items: center; text-align: center; padding: 0 8px; align-content: start; }
+.cs::before { content: ""; position: absolute; top: 21px; left: -50%; width: 100%; height: 2px; background: var(--line); }
+.cs:first-child::before { display: none; }
+.cs .fill { position: absolute; top: 21px; left: -50%; height: 2px; width: 100%; background: var(--ok); transform-origin: left; transition: transform .5s var(--ease-out); }
+.cs:first-child .fill { display: none; }
+.cs.q .fill { transform: scaleX(0); }
+.cs.next .fill { background: var(--signal); }
+.cs .dot { position: relative; z-index: 1; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font: 700 .95rem var(--font-data); border: 2px solid var(--ok); background: var(--ok); color: #0b1d14; transition: background .3s, border-color .3s; }
+.cs.q .dot { background: #0e161c; border-color: var(--line); color: var(--dim); }
+.cs.run .dot { background: #0e161c; border-color: var(--info); color: var(--info); }
+.cs.next .dot { background: var(--signal-soft); border-color: var(--signal); color: var(--signal); }
+.cs.next .dot::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--signal); animation: ping 1.9s ease-out infinite; }
+@keyframes ping { from { transform: scale(.85); opacity: .9; } to { transform: scale(1.4); opacity: 0; } }
+.cs .y { font: 500 .7rem/1.2 var(--font-data); color: var(--dim); letter-spacing: .04em; }
+.cs .c { font: 600 1rem/1.15 var(--font-display); }
+.cs .r { font-size: .8rem; color: var(--dim); line-height: 1.35; }
+.cs .t { font: 500 .62rem/1 var(--font-data); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+
+/* labs */
+.labs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 10px; }
+.lab { background: rgba(9, 14, 19, .9); border: 1px solid var(--glass-line); border-radius: 5px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.lab .nm { font: 600 1rem/1.2 var(--font-data); }
+.lab .nm a { color: var(--ink); }
+.lab p { margin: 0; color: var(--dim); font-size: .9rem; }
+.lab .res { font: 500 .8rem/1.4 var(--font-data); color: var(--signal); }
+.lab .learn { font-size: .84rem; color: var(--ink); }
+
+/* contact */
+.contact h2 { font-size: clamp(2.2rem, 5vw, 4rem); }
+.email { font: 500 clamp(1.05rem, 2.4vw, 1.5rem)/1.2 var(--font-data); color: var(--ink); user-select: all; word-break: break-all; }
+.note { font: 400 .78rem var(--font-data); min-height: 1.2em; }
+.note.ok { color: var(--ok); } .note.warn { color: var(--signal); }
+footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px; margin: 0 auto; font: 400 .74rem/1.6 var(--font-data); color: var(--dim); }
+
+/* request journey */
+.browser { border: 1px solid var(--glass-line); border-radius: 8px; overflow: hidden; background: #0b1117; }
+.browser .bar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #111a21; border-bottom: 1px solid var(--glass-line); }
+.browser .dots { display: flex; gap: 6px; } .browser .dots i { width: 9px; height: 9px; border-radius: 50%; background: #2a3a45; }
+.browser .url { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; background: #0a1015; font: 500 .86rem/1 var(--font-data); color: var(--ink); white-space: nowrap; overflow: hidden; }
+.browser .url .lock { color: var(--ok); }
+.browser .url .caret { width: 7px; height: 1.05em; background: var(--signal); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.browser .go { flex: none; }
+.wf { display: grid; gap: 6px; padding: 12px; }
+.wf-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font: 500 .74rem/1.2 var(--font-data); color: var(--dim); }
+.wf-row b { color: var(--ink); font-weight: 500; }
+.wf-row .track { position: relative; height: 10px; background: rgba(255, 255, 255, .03); border-radius: 2px; }
+.wf-row .seg { position: absolute; top: 0; bottom: 0; border-radius: 2px; transform-origin: left; }
+.wf-row .ms { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+.wf-row.dns .seg { background: #6cc4e8; } .wf-row.tcp .seg { background: #f2b650; } .wf-row.tls .seg { background: #b48cf2; }
+.wf-row.ttfb .seg { background: #5fd39a; } .wf-row.xfer .seg { background: #e2e9ee; }
+.wf-total { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 2px 12px 12px; font: 500 .74rem/1.3 var(--font-data); color: var(--dim); }
+.wf-total b { color: var(--ink); }
+.hops { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; min-height: 12em; align-content: start; }
+.hops li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; font-size: .9rem; color: var(--dim); animation: hopIn .45s var(--ease-out) both; }
+.hops li b { font: 600 .66rem/1.9 var(--font-data); letter-spacing: .1em; text-transform: uppercase; color: var(--signal); }
+.hops li strong { color: var(--ink); font-weight: 500; }
+.hops li.on { color: var(--ink); }
+@keyframes hopIn { from { opacity: 0; transform: translateY(6px); } }
+
+@media (max-width: 1180px) { .chapters-nav { display: none; } }
+@media (max-width: 900px) {
+  .chapters-nav, .strip .hide-s { display: none; }
+  .chapter { min-height: auto; padding-block: 26vh 4vh; }
+  .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel, .panel.wide, .panel.xwide { width: 100%; }
+  .career { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .cs { grid-template-columns: 44px minmax(0, 1fr); justify-items: start; text-align: left; column-gap: 14px; }
+  .cs > :not(.dot):not(.fill) { grid-column: 2; }
+  .cs .dot { grid-row: 1 / span 5; }
+  .cs::before, .cs .fill { display: none; }
+}
+@media (max-width: 520px) {
+  .strip-inner { gap: 12px; font-size: .72rem; }
+  .strip .hide-xs { display: none; }
+  .panel { padding: 20px 16px; }
+  .tl li { grid-template-columns: 74px 14px minmax(0, 1fr); }
+  .facts li { grid-template-columns: 60px minmax(0, 1fr); }
+  .kv { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+</head>
+<body>
+<canvas id="world" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+
+<div class="strip" role="banner">
+  <div class="strip-inner">
+    <span><span class="led" aria-hidden="true"></span><b>Aryan Kasraee</b></span>
+    <span class="hide-xs">DevOps / SRE</span>
+    <span class="avail hide-xs">open to work</span>
+    <nav class="chapters-nav" aria-label="Chapters">
+      <a href="#request" data-nav="request">request</a><a href="#edge" data-nav="edge">edge</a><a href="#platform" data-nav="platform">platform</a><a href="#data" data-nav="data">data</a><a href="#observability" data-nav="observability">observability</a><a href="#delivery" data-nav="delivery">delivery</a>
+    </nav>
+    <span class="grow"></span>
+    <a class="hide-s" href="https://github.com/aryankasraee">GitHub</a>
+    <a class="hide-s" href="https://www.linkedin.com/in/aryan-kasraee">LinkedIn</a>
+    <a href="#contact"><b>Contact</b></a>
+  </div>
+</div>
+
+<main>
+  <section class="col hero" id="top" data-cam="0">
+    <div class="eyebrow">DevOps / SRE engineer · Kubernetes · HA databases</div>
+    <h1><span class="line"><span>I break things</span></span><span class="line"><span>on purpose, so</span></span><span class="line"><span>production <em>doesn't.</em></span></span></h1>
+    <p class="value">DevOps/SRE engineer with <strong>4+ years</strong> running Kubernetes, high-availability PostgreSQL and MongoDB, and a self-hosted DNS and TLS edge for <strong>2,000+ domains</strong> at a multi-tenant SaaS. I rehearse failures in drills and publish them. <strong>Open to remote or relocation.</strong></p>
+    <div class="links">
+      <a class="btn primary" href="#contact">Email Aryan</a>
+      <a class="btn danger" href="#data" id="hero-kill">Watch a database failover ▸</a>
+      <a class="btn" href="https://www.linkedin.com/in/aryan-kasraee">LinkedIn</a>
+    </div>
+    <div class="scroll-cue"><i aria-hidden="true"></i>scroll to fly through the system</div>
+  </section>
+
+  <section class="col summary" id="summary" data-cam="1" aria-labelledby="sum-h">
+    <div class="card30">
+      <header><h2 id="sum-h">The 30-second version</h2><span class="label">for recruiters</span></header>
+      <dl class="kv">
+        <div><dt>Role</dt><dd>DevOps / SRE Engineer<small>platform, reliability, delivery</small></dd></div>
+        <div><dt>Experience</dt><dd>4+ years in DevOps<small>since Jan 2022 · two of four roles part-time</small></dd></div>
+        <div><dt>Now</dt><dd>DevOps Engineer, Classeh<small>school management SaaS · since May 2025</small></dd></div>
+        <div><dt>Location</dt><dd>Tehran, Iran · UTC+3:30<small>open to remote and relocation</small></dd></div>
+        <div><dt>Runs in production</dt><dd>Kubernetes clusters, replicated PostgreSQL and MongoDB databases, DNS for 2,000+ domains<small>self-hosted, on restricted networks</small></dd></div>
+        <div><dt>Contact</dt><dd><a href="#contact">aryankasraee@gmail.com</a><small>email is fastest</small></dd></div>
+      </dl>
+      <p class="keywords"><b>Keywords:</b> Kubernetes · Docker · Helm · Argo CD · GitOps · Terraform · Ansible · CI/CD (GitHub Actions, GitLab CI, Jenkins) · Prometheus · Grafana · Loki · ELK · PostgreSQL · Patroni · MongoDB · Valkey/Redis · Nginx · Caddy · PowerDNS · TLS/ACME · Linux · AWS (EC2, S3) · Python · Shell</p>
+    </div>
+  </section>
+
+  <section class="col chapter" id="request" data-cam="2" aria-labelledby="req-h">
+    <div class="panel wide">
+      <div class="label"><span class="n">00</span> / the request · browser to database and back</div>
+      <h2 id="req-h">What happens when someone opens a school's website.</h2>
+      <p class="plain">Follow one request through everything I run. The timings are real: medians of 876 probes my monitoring sent to one of the school sites, through the CDN, over 12 hours.</p>
+      <div class="browser">
+        <div class="bar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="url"><span class="lock" aria-hidden="true">●</span><span id="url-text">https://school.example</span><span class="caret" aria-hidden="true"></span></span>
+          <button class="btn primary go" id="req-btn" type="button">Enter ⏎</button>
+        </div>
+        <div class="wf" id="wf" role="img" aria-label="Request timing waterfall: DNS 82.8 ms, TCP 1.0 ms, TLS 7.4 ms, server 7.7 ms, transfer 0.2 ms"></div>
+        <div class="wf-total"><span>total <b>~101 ms</b> median · 876 probes</span><span id="wf-insight">DNS is <b>82%</b> of it. Browsers cache it, so a returning visitor usually skips that step.</span></div>
+      </div>
+      <ol class="hops" id="hops" aria-live="polite"></ol>
+      <p class="sim-note">The school's real hostname is hidden. Probes run every 15 s from my monitoring host through the public CDN path; numbers are 12-hour medians from Prometheus.</p>
+    </div>
+  </section>
+
+  <section class="col chapter" id="edge" data-cam="2" aria-labelledby="edge-h">
+    <div class="panel">
+      <div class="label"><span class="n">01</span> / edge · DNS, CDN, TLS</div>
+      <h2 id="edge-h">Every school gets its own domain, and its own certificate.</h2>
+      <p class="plain">Schools bring their own web addresses. I run the DNS and HTTPS front door that answers for all of them.</p>
+      <div class="big"><span class="num">2,000+</span><span class="unit">domains on a self-hosted PowerDNS edge</span></div>
+      <ul class="facts">
+        <li><b class="p">prod</b><span><strong>PowerDNS</strong> with API-driven automation and automated certificate issuance and renewal at Classeh.</span></li>
+        <li><b class="l">lab</b><span><strong>tls-edge-on-demand</strong>: an allowlist gate in front of on-demand TLS. A flood of 30 made-up names caused <strong>0</strong> certificate orders, against <strong>30</strong> with the gate off.</span></li>
+      </ul>
+      <div class="lesson"><b>Learned</b>Removing a tenant from the allowlist does not revoke its certificate. It keeps being served from cache, so cutting someone off also means stopping their traffic.</div>
+      <div class="links"><a href="https://github.com/aryankasraee/tls-edge-on-demand">tls-edge-on-demand →</a></div>
+    </div>
+  </section>
+
+  <section class="col chapter" id="platform" data-cam="3" aria-labelledby="plat-h">
+    <div class="panel">
+      <div class="label"><span class="n">02</span> / platform · Kubernetes, Docker</div>
+      <h2 id="plat-h">Clusters that deploy even when the internet doesn't cooperate.</h2>
+      <p class="plain">Most public registries are blocked from Iran. I keep production shipping anyway.</p>
+      <div class="big"><span class="num" id="rollout">18/18</span><span class="unit">app instances updated one at a time with no downtime: a rolling deploy, replayed on the right</span></div>
+      <ul class="facts">
+        <li><b class="p">prod</b><span><strong>Harbor</strong> as an in-country registry, so deployments stop depending on blocked registries; mirrors and toolcaches for CI.</span></li>
+        <li><b class="l">lab</b><span><strong>gitops-platform</strong>: Argo CD app-of-apps on kind, dev and staging from one set of manifests, default-deny network policy proven on a live cluster.</span></li>
+      </ul>
+      <div class="lesson"><b>Learned</b>"Synced / Healthy" in Argo CD can be stale. The wait script checks that the synced revision equals the commit just pushed.</div>
+      <div class="links"><a href="https://github.com/aryankasraee/gitops-platform">gitops-platform →</a></div>
+    </div>
+  </section>
+
+  <section class="col chapter" id="data" data-cam="4" aria-labelledby="data-h">
+    <div class="panel wide">
+      <div class="label"><span class="n">03</span> / data · PostgreSQL, MongoDB, Valkey</div>
+      <h2 id="data-h">Kill the primary database. Count what gets lost.</h2>
+      <p class="plain">This replays the failover drill from my Patroni lab: the main database dies while an app is writing to it. Watch how long writes stop, and whether any confirmed write disappears.</p>
+      <div class="sim" id="sim">
+        <div class="sim-top">
+          <div class="timer" id="sim-timer">17.0<small>s without writes</small></div>
+          <button class="btn danger" id="sim-btn" type="button">Kill the primary</button>
+        </div>
+        <div class="chart-wrap">
+          <svg id="sim-chart" viewBox="0 0 520 86" preserveAspectRatio="none" role="img" aria-label="Acknowledged writes per half second, before, during and after the failover"></svg>
+          <span class="gap-label" id="gap-label">17.0 s · 0 writes lost</span>
+          <div class="axis-row" id="axis-row"></div>
+        </div>
+        <ol class="simlog" id="sim-log" aria-live="polite"></ol>
+        <p class="plain" id="sim-verdict"><strong>In plain terms:</strong> the main database died, saving paused for 17 seconds, then a standby took over and not one saved record was lost.</p>
+        <p class="sim-note">Lab replay at 3× speed. Measured run: largest gap between two acknowledged writes 17,045 ms; 0 acknowledged writes lost; old primary rejoined as a replica.</p>
+      </div>
+      <ul class="facts">
+        <li><b class="p">prod</b><span><strong>Patroni PostgreSQL</strong>, <strong>MongoDB replica sets</strong> and <strong>Valkey with Sentinel</strong> at Classeh: failovers, replica rebuilds, backups.</span></li>
+        <li><b class="l">lab</b><span><strong>Why 17 s:</strong> nobody is promoted until the dead leader's lock expires (ttl 15 s) and HAProxy notices (2 × 1 s checks). <strong>Why 0 lost:</strong> synchronous replication acknowledges a commit only once a standby has it.</span></li>
+      </ul>
+      <div class="lesson"><b>Learned</b>The first restore from backup failed: Patroni writes absolute paths into postgresql.conf. You only find that out by restoring.</div>
+      <div class="links"><a href="https://github.com/aryankasraee/patroni-ha-lab">patroni-ha-lab →</a></div>
+    </div>
+  </section>
+
+  <section class="col chapter" id="observability" data-cam="5" aria-labelledby="obs-h">
+    <div class="panel wide">
+      <div class="label"><span class="n">04</span> / observability · metrics, logs, alerts</div>
+      <h2 id="obs-h">Monitoring that I monitor too.</h2>
+      <p class="plain">I built the monitoring for a production server from scratch with Terraform, then ran it under synthetic traffic overnight.</p>
+      <div class="big"><span class="num">0</span><span class="unit">failed of 243,360 requests in a 9-hour synthetic soak (~7.5 req/s, p95 9 ms)</span></div>
+      <ul class="facts">
+        <li><b class="p">prod host</b><span><strong>infra-observability</strong>: Prometheus, Alertmanager, Grafana, Loki and Alloy deployed by Terraform; nginx logs turned into per-site error and latency metrics; 22 alert rules.</span></li>
+        <li><b class="l">lab</b><span><strong>sre-observability</strong>: multi-window burn-rate SLO alerts, unit-tested with promtool. The page fires about 20 s after injecting 30% errors and clears about 14 s after the fix.</span></li>
+      </ul>
+      <div class="lesson"><b>Incident · 5–6 Oct 2026 · my own monitoring stack</b>
+        <ol class="tl">
+          <li class="bad"><time>20:24 UTC</time><i></i><span>Host load jumps to 12 right after deploy. cAdvisor hit its 256 MB limit and was swapping; disk I/O at 100%.</span></li>
+          <li class="good"><time>20:27 UTC</time><i></i><span>Fixed: every container gets <code>memory_swap = memory</code>; cAdvisor's disk metric disabled. Load back under 1.</span></li>
+          <li class="bad"><time>20:31 UTC</time><i></i><span>Grafana 13 tries to update its own Prometheus and Loki plugins. The plugin CDN answers 403 to Iranian IPs and leaves them unregistered: every dashboard silently shows "No data".</span></li>
+          <li class="good"><time>06:50 UTC</time><i></i><span>Found from a screenshot, fixed by disabling plugin auto-install. Prometheus kept every sample, so no data was lost.</span></li>
+          <li><time>after</time><i></i><span>I now verify dashboards through Grafana's own query API, not only against Prometheus.</span></li>
+        </ol>
+      </div>
+      <div class="links"><a href="https://github.com/aryankasraee/infra-observability">infra-observability →</a><a href="https://github.com/aryankasraee/sre-observability">sre-observability →</a></div>
+    </div>
+  </section>
+
+  <section class="col chapter" id="delivery" data-cam="6" aria-labelledby="del-h">
+    <div class="panel">
+      <div class="label"><span class="n">05</span> / delivery · CI/CD, GitOps, IaC</div>
+      <h2 id="del-h">Pipelines that tell the truth.</h2>
+      <p class="plain">Every change reaches production through git, and through a pipeline that fails loudly instead of quietly.</p>
+      <ul class="facts">
+        <li><b class="p">prod</b><span>Jenkins, Argo CD, GitLab CI and Gitea Actions across development, staging and production; SonarQube code inspection.</span></li>
+        <li><b class="l">lab</b><span><strong>ci-cd-reference</strong>: toolchain preflight, secret scanning, matrix builds with SBOMs, one required gate, and a watchdog that opens an issue when the newest commit on main was never tested.</span></li>
+        <li><b class="l">lab</b><span><strong>sre-runbooks</strong>: on-call runbooks that each state how they were verified; CI rejects one with a missing section.</span></li>
+      </ul>
+      <div class="lesson"><b>Learned</b>Cancelling in-progress CI runs keeps main fast but can leave the newest commit untested. That is why the watchdog exists.</div>
+      <div class="links"><a href="https://github.com/aryankasraee/ci-cd-reference">ci-cd-reference →</a><a href="https://github.com/aryankasraee/sre-runbooks">sre-runbooks →</a></div>
+    </div>
+  </section>
+
+  <section class="col chapter" id="career" data-cam="7" aria-labelledby="car-h">
+    <div class="panel xwide">
+      <div class="label"><span class="n">06</span> / career</div>
+      <h2 id="car-h">Four stages passed. The next one is yours to approve.</h2>
+      <div class="career" id="career-track">
+        <div class="cs"><span class="fill"></span><span class="dot">✓</span><span class="y">Jan 2022 – Jul 2023</span><span class="c">Classeh</span><span class="r">Kubernetes clusters, CI/CD, BigBlueButton live classes</span><span class="t">full-time</span></div>
+        <div class="cs"><span class="fill"></span><span class="dot">✓</span><span class="y">Aug 2023 – May 2025</span><span class="c">VItech</span><span class="r">Kubernetes, Jenkins + Argo CD, AWS EC2/S3, DR plans</span><span class="t">part-time</span></div>
+        <div class="cs"><span class="fill"></span><span class="dot">✓</span><span class="y">Jul – Sep 2024</span><span class="c">ShopFA</span><span class="r">Shared hosting to own servers, Prometheus + Grafana</span><span class="t">part-time project</span></div>
+        <div class="cs"><span class="fill"></span><span class="dot">✓</span><span class="y">May 2025 – now</span><span class="c">Classeh</span><span class="r">Rejoined to own HA data, the PowerDNS edge, observability</span><span class="t">full-time</span></div>
+        <div class="cs next"><span class="fill"></span><span class="dot">?</span><span class="y">next</span><span class="c">Your team</span><span class="r">DevOps / SRE · remote or relocation</span><a class="btn primary" href="#contact" style="padding:9px 11px">Contact</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="col chapter" id="labs" data-cam="8" aria-labelledby="labs-h">
+    <div class="panel xwide">
+      <div class="label"><span class="n">07</span> / public labs</div>
+      <h2 id="labs-h">Seven repos you can run yourself.</h2>
+      <p class="tech">Published in October 2026. Each rebuilds, in public and in miniature, something I run at work. Five of the seven ship a drill that proves their claim in CI.</p>
+      <div class="labs" id="labs-grid"></div>
+    </div>
+  </section>
+
+  <section class="col chapter contact" id="contact" data-cam="9" aria-labelledby="con-h">
+    <div class="panel wide">
+      <div class="label"><span class="n">08</span> / contact</div>
+      <h2 id="con-h">Let's talk.</h2>
+      <p class="plain">Remote or relocation. Email is the fastest way to reach me.</p>
+      <div class="email" id="email">aryankasraee@gmail.com</div>
+      <div class="links">
+        <button class="btn primary" id="copy" type="button">Copy email</button>
+        <a class="btn" href="https://www.linkedin.com/in/aryan-kasraee">LinkedIn</a>
+        <a class="btn" href="https://github.com/aryankasraee">GitHub</a>
+        <a class="btn" href="https://aryankasraee.ir">aryankasraee.ir</a>
+      </div>
+      <div class="note" id="copy-note" role="status"></div>
+    </div>
+  </section>
+</main>
+<footer>Production facts come from my work at Classeh. Lab numbers come from the drills in the linked repositories, where each README shows how they were measured.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MOBILE = window.matchMedia("(max-width: 900px), (pointer: coarse)").matches;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function whenVisible(el, fn, threshold = 0.35) {
+  if (!("IntersectionObserver" in window)) { fn(); return; }
+  const io = new IntersectionObserver((es) => {
+    if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(); }
+  }, { threshold });
+  io.observe(el);
+}
+
+/* ---------------- labs ---------------- */
+const LABS = [
+  ["infra-observability", "Prometheus, Alertmanager, Grafana, Loki and Alloy for a production Docker host, created by Terraform over SSH.", "243k requests · 0 failed · p95 9 ms", "Grafana's plugin auto-update can blind every dashboard behind a geo-block."],
+  ["patroni-ha-lab", "Three-node PostgreSQL 17 with Patroni, etcd and HAProxy, built to be broken on purpose.", "17 s write pause · 0 writes lost", "Restores fail on absolute paths Patroni writes into the config."],
+  ["gitops-platform", "Argo CD app-of-apps on kind; dev and staging from one set of Kustomize manifests.", "guardrails proven on a live cluster", "Default-deny egress also blocks your own test pod's DNS."],
+  ["sre-observability", "A service that fails on purpose, and multi-window burn-rate SLO alerts that must notice.", "page ~20 s · clear ~14 s (lab windows)", "An alert test without a healthy lead-in passes for the wrong reason."],
+  ["tls-edge-on-demand", "Caddy on-demand TLS with an allowlist gate for a multi-tenant HTTPS edge.", "0 vs 30 certificate orders", "Removing a tenant does not revoke its certificate."],
+  ["ci-cd-reference", "Go monorepo pipeline: preflight, gitleaks, matrices, SBOMs, one required gate.", "watchdog for untested main", "cancel-in-progress can leave main untested."],
+  ["sre-runbooks", "On-call runbooks and a blameless postmortem template, checked by CI.", "each runbook states how it was verified", "A runbook nobody has tried is a draft."]
+];
+$("#labs-grid").innerHTML = LABS.map(([n, d, r, l]) => `
+  <article class="lab"><span class="nm"><a href="https://github.com/aryankasraee/${n}">${esc(n)}</a></span>
+  <p>${esc(d)}</p><span class="res">${esc(r)}</span><span class="learn">${esc(l)}</span></article>`).join("");
+
+/* ---------------- career replay (rests fully passed) ---------------- */
+whenVisible($("#career-track"), async () => {
+  if (REDUCED) return;
+  const st = [...document.querySelectorAll("#career-track .cs:not(.next)")];
+  st.forEach((s) => { s.classList.add("q"); s.querySelector(".dot").textContent = ""; });
+  for (const s of st) {
+    s.classList.remove("q"); s.classList.add("run");
+    await sleep(420);
+    s.classList.remove("run"); s.querySelector(".dot").textContent = "✓";
+  }
+});
+
+/* ---------------- copy ---------------- */
+let noteTimer = 0;
+$("#copy").addEventListener("click", () => {
+  const note = $("#copy-note"), email = $("#email").textContent.trim();
+  const fallback = () => {
+    const r = document.createRange(); r.selectNodeContents($("#email"));
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    note.className = "note warn"; note.textContent = "Selected. Press Cmd/Ctrl+C to copy.";
+  };
+  try { navigator.clipboard.writeText(email).then(() => { note.className = "note ok"; note.textContent = "Copied to clipboard."; }, fallback); }
+  catch (e) { fallback(); }
+  clearTimeout(noteTimer); noteTimer = setTimeout(() => { note.textContent = ""; }, 4000);
+});
+
+/* ---------------- incident simulator (DOM) ---------------- */
+const SIM = (() => {
+  // Lab seconds. Writes stop at 0 and resume at 17.045 (largest measured gap).
+  const GAP = 17.045, END = 24, SPEED = 3, T0 = -4;
+  const EVENTS = [
+    [-4, "info", "writer inserting numbered rows; each logged only after commit"],
+    [0, "alert", "docker kill patroni1 (the primary)"],
+    [0.4, "alert", "writes failing: connection refused"],
+    [1, "info", "leader lock held by the dead node; ttl 15 s counting down"],
+    [15, "info", "lock expired; patroni2 (synchronous standby) takes it"],
+    [15.6, "info", "patroni2 promoted to primary"],
+    [GAP, "ok", "HAProxy marks patroni2 up; writes resume"],
+    [19.5, "ok", "check: every acknowledged row present, 0 lost"],
+    [22, "ok", "patroni1 restarted, rejoined as replica"]
+  ];
+  const chart = $("#sim-chart"), log = $("#sim-log"), timer = $("#sim-timer"), btn = $("#sim-btn");
+  const X0 = 24, X1 = 512;
+  const x = (t) => X0 + (t - T0) / (END - T0) * (X1 - X0);
+  let s = `<line x1="${X0}" y1="70" x2="${X1}" y2="70" stroke="#1f2d37"/>`;
+  $("#axis-row").innerHTML = [-4, 0, 5, 10, 15, 20].map((t) => `<span style="left:${(x(t) / 520 * 100).toFixed(2)}%">${t}s</span>`).join("");
+  const gapLabelEl = $("#gap-label"); gapLabelEl.style.left = `${((x(0) + x(GAP)) / 2 / 520 * 100).toFixed(2)}%`;
+  s += `<rect class="gapbox" id="gapbox" x="${x(0)}" y="6" width="${x(GAP) - x(0)}" height="62" opacity="0"/>`;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const bw = (X1 - X0) / ((END - T0) / 0.5) - 2;
+  for (let t = T0; t < END; t += 0.5) {
+    const h = (t >= 0 && t < GAP) ? 0 : 34 + rnd() * 18;
+    s += `<rect class="bar" data-t="${t}" x="${x(t) + 1}" y="${68 - h}" width="${bw}" height="${h}"/>`;
+  }
+  s += `<line id="cursor" x1="${x(T0)}" y1="4" x2="${x(T0)}" y2="70" stroke="#f2b650" stroke-width="1.5" opacity="0"/>`;
+  chart.innerHTML = s;
+  const barEls = [...chart.querySelectorAll(".bar")];
+  const cursor = chart.querySelector("#cursor"), gapbox = chart.querySelector("#gapbox");
+  const listeners = [];
+  let running = false, ran = false, lastLog = -1;
+
+  function render(t, final) {
+    barEls.forEach((b) => { b.style.opacity = final || +b.dataset.t <= t ? 1 : 0.12; });
+    const cx = x(Math.min(t, END));
+    cursor.setAttribute("x1", cx); cursor.setAttribute("x2", cx); cursor.setAttribute("opacity", final ? 0 : 1);
+    const showGap = final || t >= GAP;
+    gapbox.setAttribute("opacity", showGap ? 1 : 0); gapLabelEl.style.opacity = showGap ? 1 : 0;
+    const pause = t < 0 ? 0 : Math.min(t, GAP);
+    timer.innerHTML = `${pause.toFixed(1)}<small>s without writes</small>`;
+    timer.className = "timer" + (final ? " good" : t >= 0 && t < GAP ? " bad" : t >= GAP ? " good" : "");
+    const shown = EVENTS.filter((e) => final || e[0] <= t);
+    if (shown.length !== lastLog) {
+      lastLog = shown.length;
+      log.innerHTML = shown.map(([et, cls, msg]) =>
+        `<li class="${cls}"><time>${et < 0 ? "t−4" : "t+" + et.toFixed(1)}</time><span>${esc(msg)}</span></li>`).join("");
+    }
+  }
+  function finish() { running = false; btn.removeAttribute("aria-disabled"); btn.textContent = "Run the drill again"; lastLog = -1; render(END, true); listeners.forEach((f) => f(END)); }
+  function run() {
+    if (running) return;
+    running = true; ran = true; btn.setAttribute("aria-disabled", "true"); btn.textContent = "Failing over…"; lastLog = -1;
+    if (REDUCED) { finish(); return; }
+    const start = performance.now();
+    const step = (now) => {
+      const t = T0 + Math.max(0, now - start) / 1000 * SPEED;
+      if (t >= END) { finish(); return; }
+      render(t, false); listeners.forEach((f) => f(t));
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  render(END, true);   // at rest the finished drill is visible
+  btn.addEventListener("click", run);
+  return { run, onTick: (f) => listeners.push(f), get ran() { return ran; } };
+})();
+$("#hero-kill").addEventListener("click", (e) => {
+  e.preventDefault();
+  $("#sim").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "center" });
+  if (!("IntersectionObserver" in window)) { SIM.run(); return; }
+  const io = new IntersectionObserver((es) => { if (es.some((x) => x.intersectionRatio >= .6)) { io.disconnect(); setTimeout(() => SIM.run(), 250); } }, { threshold: [.6] });
+  io.observe($("#sim"));
+});
+whenVisible($("#sim"), () => { setTimeout(() => { if (!SIM.ran) SIM.run(); }, 1500); }, 0.6);
+
+/* ---------------- request journey (DOM) ---------------- */
+const JOURNEY = (() => {
+  const END = 12.6;
+  // real medians (ms) from blackbox probes: resolve, connect, tls, processing, transfer
+  const PH = [["dns", "DNS lookup", 82.8, 1.0, 4.6], ["tcp", "TCP connect", 1.0, 4.6, 5.0], ["tls", "TLS handshake", 7.4, 5.0, 6.0],
+              ["ttfb", "Server (TTFB)", 7.7, 6.0, 10.2], ["xfer", "Transfer", 0.2, 10.2, 11.2]];
+  const SCALE = 101;
+  let off = 0;
+  $("#wf").innerHTML = PH.map(([k, name, ms]) => {
+    const left = off / SCALE * 100, w = Math.max(.6, ms / SCALE * 100); off += ms;
+    return `<div class="wf-row ${k}"><b>${name}</b><span class="track"><span class="seg" style="left:${left}%;width:${w}%"></span></span><span class="ms">${ms.toFixed(1)} ms</span></div>`;
+  }).join("");
+  const segs = [...document.querySelectorAll("#wf .seg")];
+  const HOPS = [
+    [0.2, "client", "You type the address and press <strong>Enter</strong>. The browser checks its own cache first."],
+    [1.0, "dns", "<strong>DNS, 82.8 ms.</strong> A resolver asks the root, then <strong>.ir</strong>, then the authoritative server. For school domains, that last one is the <strong>PowerDNS</strong> I run."],
+    [4.6, "tcp", "<strong>TCP, 1.0 ms.</strong> The browser connects to the nearest <strong>CDN edge</strong>."],
+    [5.0, "tls", "<strong>TLS, 7.4 ms.</strong> The edge reads the hostname and presents that school's own <strong>certificate</strong>."],
+    [6.0, "origin", "<strong>Origin.</strong> On a cache miss the CDN forwards to my <strong>nginx</strong>, which routes by hostname into <strong>Kubernetes</strong>."],
+    [7.6, "data", "<strong>Data.</strong> The app reads from the <strong>replicated database</strong> and answers."],
+    [8.6, "reply", "<strong>Response, 7.7 ms to first byte.</strong> The page travels back the same way and the browser draws it."],
+    [11.2, "watch", "<strong>Monitoring.</strong> Every 15 seconds my blackbox exporter replays this exact path through the CDN and alerts if any hop slows down."]
+  ];
+  const hops = $("#hops"), btn = $("#req-btn"), urlEl = $("#url-text");
+  const URL = "https://school.example";
+  const listeners = [];
+  let running = false, ran = false, shown = -1;
+  function render(t, final) {
+    segs.forEach((s, i) => {
+      const [, , , a, b] = PH[i];
+      const k = final ? 1 : Math.max(0, Math.min(1, (t - a) / (b - a)));
+      s.style.transform = `scaleX(${k})`;
+    });
+    const n = final ? HOPS.length : HOPS.filter((h) => h[0] <= t).length;
+    if (n !== shown) {
+      shown = n;
+      hops.innerHTML = HOPS.slice(0, n).map(([, tag, html], i) => `<li class="${i === n - 1 && !final ? "on" : ""}"><b>${tag}</b><span>${html}</span></li>`).join("");
+    }
+    const typed = final ? URL.length : Math.floor(Math.min(1, t / .9) * URL.length);
+    urlEl.textContent = URL.slice(0, Math.max(8, typed));
+  }
+  function finish() { running = false; btn.removeAttribute("aria-disabled"); btn.textContent = "Send again ⏎"; shown = -1; render(END, true); listeners.forEach((f) => f(END, false)); }
+  function run() {
+    if (running) return;
+    running = true; ran = true; btn.setAttribute("aria-disabled", "true"); btn.textContent = "Loading…"; shown = -1;
+    if (REDUCED) { finish(); return; }
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.max(0, now - start) / 1000;
+      if (t >= END) { finish(); return; }
+      render(t, false); listeners.forEach((f) => f(t, true));
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  render(END, true);
+  btn.addEventListener("click", run);
+  return { run, onTick: (f) => listeners.push(f), get ran() { return ran; }, END };
+})();
+whenVisible($("#request"), () => { setTimeout(() => { if (!JOURNEY.ran) JOURNEY.run(); }, 1200); }, 0.55);
+
+/* ---------------- chapters ---------------- */
+const sections = [...document.querySelectorAll("[data-cam]")];
+const navLinks = [...document.querySelectorAll("[data-nav]")];
+function highlightNav() {
+  const mid = window.scrollY + innerHeight * .5;
+  let active = sections[0];
+  sections.forEach((s) => { if (s.offsetTop <= mid) active = s; });
+  navLinks.forEach((a) => a.classList.toggle("on", a.dataset.nav === active.id));
+}
+window.addEventListener("scroll", highlightNav, { passive: true }); highlightNav();
+
+/* ---------------- 3D world ---------------- */
+(() => {
+  const canvas = $("#world");
+  const probe = document.createElement("canvas");
+  if (!window.THREE || !(probe.getContext("webgl2") || probe.getContext("webgl"))) { document.body.classList.add("no3d"); return; }
+  const T = THREE;
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas, antialias: !MOBILE, powerPreference: "high-performance" }); }
+  catch (e) { document.body.classList.add("no3d"); return; }
+  let DPR = Math.min(window.devicePixelRatio || 1, MOBILE ? 1.5 : 1.75);
+  renderer.setPixelRatio(DPR);
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.setClearColor(0x030508, 1);
+
+  const scene = new T.Scene();
+  scene.fog = new T.FogExp2(0x05080d, 0.0145);
+  const camera = new T.PerspectiveCamera(38, 1, 0.1, 600);
+  scene.add(new T.HemisphereLight(0x22384a, 0x030507, 0.7));
+  const key = new T.DirectionalLight(0xcfe6f5, 1.3); key.position.set(30, 60, 40); scene.add(key);
+  const COL = { cyan: 0x6cc4e8, amber: 0xf2b650, green: 0x5fd39a, red: 0xff5a4f, steel: 0x0e161c };
+
+  const glowTex = (() => {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d"), grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, "rgba(255,255,255,1)"); grd.addColorStop(.25, "rgba(255,255,255,.55)"); grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+    return new T.CanvasTexture(c);
+  })();
+  const glow = (color, size, opacity = 1) => {
+    const s = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: T.AdditiveBlending, depthWrite: false }));
+    s.scale.set(size, size, 1); return s;
+  };
+  const metal = (color = COL.steel) => new T.MeshStandardMaterial({ color, roughness: .38, metalness: .65 });
+  const emiss = (color, i = 1) => new T.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: i, roughness: .4, metalness: .1 });
+  const edges = (geo, color, op = .8) => new T.LineSegments(new T.EdgesGeometry(geo), new T.LineBasicMaterial({ color, transparent: true, opacity: op }));
+
+  // floor: a distance-faded grid with a pulse ring
+  const floor = new T.Mesh(new T.PlaneGeometry(700, 700), new T.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uFade: { value: 170 }, uPulse: { value: -1 } },
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+    fragmentShader: `varying vec3 vW; uniform float uFade; uniform float uPulse;
+      float grid(vec2 p, float s){ vec2 q = p/s; vec2 g = abs(fract(q-.5)-.5)/fwidth(q); return 1.-min(min(g.x,g.y),1.); }
+      void main(){
+        float d = length(vW.xz - vec2(60.,0.));
+        float minor = grid(vW.xz, 2.) * .2, major = grid(vW.xz, 20.) * .5;
+        float ring = uPulse > 0. ? smoothstep(2.5, 0., abs(d - uPulse)) * .7 : 0.;
+        float a = (minor + major + ring) * (1. - smoothstep(30., uFade, d));
+        gl_FragColor = vec4(mix(vec3(.13,.24,.30), vec3(.42,.77,.91), clamp(major + ring, 0., 1.)), a);
+      }` }));
+  floor.rotation.x = -Math.PI / 2; scene.add(floor);
+  const pool = (x, z, color, size) => { const g = glow(color, size, .2); g.position.set(x, .05, z); scene.add(g); };
+
+  /* EDGE (x=0): a gate of rings; domains stream in grey and leave cyan */
+  const gate = new T.Group();
+  const rings = [6.2, 7.6, 9].map((r, i) => {
+    const m = new T.Mesh(new T.TorusGeometry(r, .12 + i * .03, 10, 96), emiss(COL.cyan, .9 - i * .2));
+    m.rotation.y = Math.PI / 2; gate.add(m); return m;
+  });
+  gate.position.set(0, 9, 0); scene.add(gate);
+  const gateGlow = glow(COL.cyan, 26, .3); gateGlow.position.set(0, 9, 0); scene.add(gateGlow);
+  pool(0, 0, COL.cyan, 30);
+  const DOMAINS = MOBILE ? 700 : 2000;
+  const dGeo = new T.BufferGeometry();
+  const dPos = new Float32Array(DOMAINS * 3), dCol = new Float32Array(DOMAINS * 3), dSeed = new Float32Array(DOMAINS * 4);
+  for (let i = 0; i < DOMAINS; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 5.4;
+    dSeed[i * 4] = Math.random(); dSeed[i * 4 + 1] = Math.sin(a) * r; dSeed[i * 4 + 2] = Math.cos(a) * r; dSeed[i * 4 + 3] = .6 + Math.random() * .8;
+  }
+  dGeo.setAttribute("position", new T.BufferAttribute(dPos, 3));
+  dGeo.setAttribute("color", new T.BufferAttribute(dCol, 3));
+  const domains = new T.Points(dGeo, new T.PointsMaterial({ size: MOBILE ? .5 : .38, map: glowTex, vertexColors: true, transparent: true, depthWrite: false, blending: T.AdditiveBlending }));
+  domains.frustumCulled = false; scene.add(domains);
+  const cGrey = new T.Color(0x3d4e5c), cCyan = new T.Color(COL.cyan);
+
+  /* PLATFORM (x=40): rack cabinets with real faceplates, pods floating above as hex cells */
+  // Procedural rack faceplates: a color map plus three LED variants that are swapped to blink.
+  let rs = 11; const rr = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
+  function rackSet() {
+    const Wd = 128, Hd = 320;
+    const base = document.createElement("canvas"); base.width = Wd; base.height = Hd;
+    const g = base.getContext("2d");
+    const grd = g.createLinearGradient(0, 0, Wd, 0); grd.addColorStop(0, "#0a1016"); grd.addColorStop(.5, "#101a22"); grd.addColorStop(1, "#0a1016");
+    g.fillStyle = grd; g.fillRect(0, 0, Wd, Hd);
+    g.fillStyle = "#18242d"; g.fillRect(0, 0, 7, Hd); g.fillRect(Wd - 7, 0, 7, Hd);
+    g.fillStyle = "#26343e"; for (let y = 4; y < Hd; y += 8) { g.fillRect(2, y, 3, 2); g.fillRect(Wd - 5, y, 3, 2); }
+    const units = []; let y = 6;
+    while (y < Hd - 14) { const h = [12, 12, 12, 24, 36][Math.floor(rr() * 5)]; if (y + h > Hd - 6) break; units.push([y, h, rr()]); y += h + 2; }
+    units.forEach(([uy, h, kind]) => {
+      g.fillStyle = "#1a2731"; g.fillRect(9, uy, Wd - 18, h);
+      g.fillStyle = "#24333e"; g.fillRect(9, uy, Wd - 18, 1);
+      if (kind < .45) { g.fillStyle = "#0b1218"; for (let x = 13; x < Wd - 44; x += 4) g.fillRect(x, uy + 2, 2, h - 4); }
+      else { for (let x = 13; x < Wd - 44; x += 12) { g.fillStyle = "#0d151b"; g.fillRect(x, uy + 2, 10, h - 4); g.fillStyle = "#2b3a45"; g.fillRect(x + 1, uy + h - 4, 8, 1); } }
+      g.fillStyle = "#0e161c"; g.fillRect(Wd - 40, uy + 2, 28, h - 4);
+    });
+    const cmap = new T.CanvasTexture(base); cmap.colorSpace = T.SRGBColorSpace; cmap.anisotropy = 4;
+    const emis = [0, 1, 2].map(() => {
+      const c = document.createElement("canvas"); c.width = Wd; c.height = Hd;
+      const e = c.getContext("2d"); e.fillStyle = "#000"; e.fillRect(0, 0, Wd, Hd);
+      units.forEach(([uy, h, kind]) => {
+        const cols = ["#5fd39a", "#5fd39a", "#6cc4e8", "#f2b650"];
+        for (let l = 0; l < 3; l++) if (rr() < .72) { e.fillStyle = cols[Math.floor(rr() * cols.length)]; e.fillRect(Wd - 36 + l * 8, uy + Math.floor(h / 2) - 1, 4, 3); }
+        if (kind > .8 && rr() < .8) { e.fillStyle = "rgba(108,196,232,.85)"; e.fillRect(13, uy + h - 3, Math.floor((Wd - 60) * (.3 + rr() * .7)), 1); }
+      });
+      const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t;
+    });
+    return { cmap, emis };
+  }
+  const SETS = [rackSet(), rackSet(), rackSet()];
+  const sideMat = new T.MeshStandardMaterial({ color: 0x0d151b, roughness: .45, metalness: .7 });
+  const topMat = new T.MeshStandardMaterial({ color: 0x111c23, roughness: .5, metalness: .6 });
+  const frontMats = SETS.map((s) => s.emis.map((em) => new T.MeshStandardMaterial({ map: s.cmap, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: 2.2, roughness: .42, metalness: .55 })));
+  const rackGeo = new T.BoxGeometry(2.3, 6.4, 2.4);
+  const rackEdges = new T.EdgesGeometry(rackGeo);
+  const blinkers = [];
+  const deck = new T.Mesh(new T.BoxGeometry(18, .3, 26), new T.MeshStandardMaterial({ color: 0x0a1116, roughness: .6, metalness: .4 }));
+  deck.position.set(40, .15, 0); deck.add(edges(new T.BoxGeometry(18, .3, 26), 0x1f3442, .9)); scene.add(deck);
+  for (let row = 0; row < 3; row++) {
+    const z = -8 + row * 8;
+    for (let k = 0; k < 5; k++) {
+      const set = (row * 5 + k) % 3, v = Math.floor(Math.random() * 3);
+      const mats = [sideMat, sideMat, topMat, sideMat, frontMats[set][v], sideMat];
+      const rack = new T.Mesh(rackGeo, mats);
+      rack.position.set(34.2 + k * 2.9, 3.5, z);
+      rack.add(new T.LineSegments(rackEdges, new T.LineBasicMaterial({ color: 0x2a4352, transparent: true, opacity: .8 })));
+      const cap = new T.Mesh(new T.BoxGeometry(2.32, .06, .06), emiss(COL.cyan, 2)); cap.position.set(0, 3.2, 1.21); rack.add(cap);
+      scene.add(rack); blinkers.push({ rack, set, v, next: Math.random() * 1.5 });
+    }
+  }
+  const pods = [];
+  const podGeo = new T.CylinderGeometry(.82, .82, .42, 6);
+  const podEdge = new T.EdgesGeometry(podGeo);
+  for (let row = 0; row < 3; row++) for (let p = 0; p < 6; p++) {
+    const m = new T.Mesh(podGeo, new T.MeshStandardMaterial({ color: 0x0f2430, emissive: COL.cyan, emissiveIntensity: .55, roughness: .3, metalness: .4, transparent: true, opacity: .92 }));
+    m.position.set(33.6 + p * 2.6, 7.6, -8 + row * 8);
+    const e = new T.LineSegments(podEdge, new T.LineBasicMaterial({ color: COL.cyan, transparent: true, opacity: .95 })); m.add(e);
+    const halo = glow(COL.cyan, 2.2, .35); m.add(halo);
+    scene.add(m); pods.push({ m, e, halo, base: 7.6 });
+  }
+  pool(40, 0, COL.cyan, 36);
+
+  /* DATA (x=80): three replica columns; the primary has an amber core */
+  const dbs = [];
+  for (let i = 0; i < 3; i++) {
+    const z = -8 + i * 8, grp = new T.Group(); grp.position.set(80, 0, z);
+    const rims = [];
+    for (let k = 0; k < 9; k++) {
+      const disc = new T.Mesh(new T.CylinderGeometry(2.3, 2.3, .26, 56), new T.MeshStandardMaterial({ color: 0x1d2e38, roughness: .3, metalness: .5 }));
+      disc.position.y = .5 + k * .62; grp.add(disc);
+      const rim = new T.Mesh(new T.TorusGeometry(2.31, .035, 6, 64), new T.MeshBasicMaterial({ color: i === 0 ? COL.amber : COL.green, transparent: true, opacity: .55 }));
+      rim.rotation.x = Math.PI / 2; rim.position.y = .5 + k * .62; grp.add(rim); rims.push(rim);
+    }
+    const core = new T.Mesh(new T.CylinderGeometry(.75, .75, 5.6, 24), emiss(i === 0 ? COL.amber : COL.green, 1.6));
+    core.position.y = 3; grp.add(core);
+    const halo = glow(i === 0 ? COL.amber : COL.green, 9, .5); halo.position.y = 3.2; grp.add(halo);
+    scene.add(grp); dbs.push({ grp, core, halo, rims });
+  }
+  const lock = new T.Mesh(new T.TorusGeometry(3.1, .1, 8, 80), emiss(COL.amber, 1.5));
+  lock.rotation.x = Math.PI / 2; lock.position.set(80, 6.4, -8); scene.add(lock);
+  const promo = new T.Mesh(new T.RingGeometry(2.6, 2.9, 64), new T.MeshBasicMaterial({ color: COL.amber, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false }));
+  promo.rotation.x = -Math.PI / 2; promo.position.set(80, .1, 0); scene.add(promo);
+  pool(80, 0, COL.green, 30);
+
+  /* OBSERVABILITY: a canopy of lines over the city */
+  const canopyPts = [];
+  for (let xx = -10; xx <= 130; xx += 10) canopyPts.push(xx, 24, -14, xx, 24, 14);
+  for (let zz = -14; zz <= 14; zz += 7) canopyPts.push(-10, 24, zz, 130, 24, zz);
+  const canG = new T.BufferGeometry(); canG.setAttribute("position", new T.Float32BufferAttribute(canopyPts, 3));
+  scene.add(new T.LineSegments(canG, new T.LineBasicMaterial({ color: 0x2a5568, transparent: true, opacity: .45 })));
+  const drops = [];
+  [0, 40, 80, 120].forEach((dx) => {
+    const l = new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(dx, 24, 0), new T.Vector3(dx, 3, 0)]),
+      new T.LineDashedMaterial({ color: COL.green, dashSize: .6, gapSize: .5, transparent: true, opacity: .7 }));
+    l.computeLineDistances(); scene.add(l); drops.push(l);
+    const eye = glow(COL.green, 3.2, .9); eye.position.set(dx, 24, 0); scene.add(eye);
+  });
+  const sparkPts = []; for (let i = 0; i <= 60; i++) sparkPts.push(new T.Vector3(10 + i * 1.8, 24.2, -8 + Math.sin(i * .45) * 1.6 + Math.sin(i * .13) * 2));
+  scene.add(new T.Line(new T.BufferGeometry().setFromPoints(sparkPts), new T.LineBasicMaterial({ color: COL.cyan })));
+
+  /* DELIVERY (x=120): a light shaft dropping commits, and the gate to the next team */
+  const shaft = new T.Mesh(new T.CylinderGeometry(1.6, 1.6, 34, 32, 1, true), new T.ShaderMaterial({
+    transparent: true, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `varying vec2 vUv; uniform float uTime; void main(){ float a = smoothstep(0.,.9,vUv.y)*(1.-vUv.y*.2); float s = .55+.45*sin(vUv.y*40.-uTime*6.); gl_FragColor = vec4(vec3(.95,.71,.31), a*.18*s); }`
+  }));
+  shaft.position.set(120, 17, 0); scene.add(shaft);
+  const commitG = new T.BoxGeometry(1.4, 1.4, 1.4);
+  const commit = new T.Mesh(commitG, emiss(COL.amber, 1.2)); commit.add(edges(commitG, 0xffe2a6, 1)); scene.add(commit);
+  const impact = new T.Mesh(new T.RingGeometry(1.5, 1.8, 48), new T.MeshBasicMaterial({ color: COL.amber, transparent: true, opacity: 0, side: T.DoubleSide, depthWrite: false }));
+  impact.rotation.x = -Math.PI / 2; impact.position.set(120, .08, 0); scene.add(impact);
+  const portal = new T.Group();
+  const portalMat = new T.MeshBasicMaterial({ color: COL.amber });
+  [-5, 5].forEach((zz) => { const p = new T.Mesh(new T.BoxGeometry(.5, 12, .5), portalMat); p.position.set(0, 6, zz); portal.add(p); });
+  const beam = new T.Mesh(new T.BoxGeometry(.5, .5, 10.5), portalMat); beam.position.set(0, 12, 0); portal.add(beam);
+  const portalGlow = glow(COL.amber, 22, .18); portalGlow.position.set(0, 6, 0); portal.add(portalGlow);
+  portal.position.set(134, 0, 0); scene.add(portal);
+  pool(120, 0, COL.amber, 26);
+
+  /* ---------- atmosphere: sky, distant racks, mist, dust, a sweeping scanner ---------- */
+  const tickers = [];
+  const sky = new T.Mesh(new T.SphereGeometry(420, 32, 16), new T.ShaderMaterial({
+    side: T.BackSide, depthWrite: false, fog: false,
+    vertexShader: `varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `varying vec3 vP; void main(){ float h = vP.y; vec3 top = vec3(.008,.012,.018); vec3 hor = vec3(.035,.07,.09);
+      float band = exp(-abs(h)*7.); gl_FragColor = vec4(mix(top, hor, band) + vec3(.05,.03,.0)*exp(-abs(h-.02)*40.)*.35, 1.); }`
+  }));
+  sky.position.set(60, 0, 0); scene.add(sky);
+
+  // endless rows of racks fading into the fog
+  const FAR = MOBILE ? 70 : 170;
+  const farSet = SETS[1];
+  const farMat = [sideMat, sideMat, topMat, sideMat, new T.MeshStandardMaterial({ map: farSet.cmap, emissiveMap: farSet.emis[0], emissive: 0xffffff, emissiveIntensity: 1.6, roughness: .45, metalness: .55 }), sideMat];
+  const far = new T.InstancedMesh(rackGeo, farMat, FAR);
+  const dummy = new T.Object3D(); let fi = 0;
+  for (const side of [-1, 1]) for (let row = 0; row < 3 && fi < FAR; row++) for (let x = -60; x <= 190 && fi < FAR; x += 2.9) {
+    if (Math.random() < .12) continue;
+    dummy.position.set(x, 3.5, side * (32 + row * 9));
+    dummy.rotation.set(0, side > 0 ? Math.PI : 0, 0);
+    dummy.scale.set(1, .85 + Math.random() * .35, 1);
+    dummy.updateMatrix(); far.setMatrixAt(fi++, dummy.matrix);
+  }
+  far.count = fi; scene.add(far);
+  tickers.push((dt, t) => { if (Math.floor(t * 2.3) % 3 !== far.userData.k) { far.userData.k = Math.floor(t * 2.3) % 3; farMat[4].emissiveMap = farSet.emis[far.userData.k]; } });
+
+  // low mist: noise planes drifting over the floor
+  const mistMat = (alpha, speed, scale) => new T.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    uniforms: { uT: { value: 0 }, uA: { value: alpha }, uS: { value: speed }, uK: { value: scale } },
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+    fragmentShader: `varying vec3 vW; uniform float uT, uA, uS, uK;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
+        return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+      void main(){ vec2 p = vW.xz*uK + vec2(uT*uS, uT*uS*.4);
+        float v = n(p)*.55 + n(p*2.1+3.)*.3 + n(p*4.3-7.)*.15;
+        float d = length(vW.xz - vec2(60.,0.));
+        float a = smoothstep(.45, .85, v) * uA * (1. - smoothstep(60., 150., d));
+        gl_FragColor = vec4(vec3(.36,.6,.7), a); }`
+  });
+  const mists = [[.5, .10, .7, .035], [1.9, .07, .45, .05], [3.6, .05, .3, .03]].slice(0, MOBILE ? 2 : 3).map(([y, a, s, k]) => {
+    const m = new T.Mesh(new T.PlaneGeometry(320, 200), mistMat(a, s, k)); m.rotation.x = -Math.PI / 2; m.position.set(60, y, 0); scene.add(m); return m;
+  });
+  tickers.push((dt, t) => mists.forEach((m) => { m.material.uniforms.uT.value = t; }));
+
+  // dust motes
+  const DUST = MOBILE ? 500 : 1600;
+  const dustGeo = new T.BufferGeometry(), dp = new Float32Array(DUST * 3);
+  for (let i = 0; i < DUST; i++) { dp[i * 3] = -40 + Math.random() * 200; dp[i * 3 + 1] = Math.random() * 40; dp[i * 3 + 2] = -40 + Math.random() * 80; }
+  dustGeo.setAttribute("position", new T.BufferAttribute(dp, 3));
+  const dust = new T.Points(dustGeo, new T.PointsMaterial({ size: .18, map: glowTex, color: 0x9fd3e6, transparent: true, opacity: .55, depthWrite: false, blending: T.AdditiveBlending }));
+  dust.frustumCulled = false; scene.add(dust);
+  tickers.push((dt, t) => {
+    for (let i = 0; i < DUST; i++) {
+      dp[i * 3 + 1] += dt * (.25 + (i % 7) * .05); dp[i * 3] += Math.sin(t * .3 + i) * dt * .2;
+      if (dp[i * 3 + 1] > 40) dp[i * 3 + 1] = 0;
+    }
+    dustGeo.attributes.position.needsUpdate = true;
+  });
+
+  // a slow searchlight sweeping the city, with its spot on the floor
+  const beamGeo = new T.ConeGeometry(14, 70, 48, 1, true); beamGeo.translate(0, -35, 0);
+  const searchBeam = new T.Mesh(beamGeo, new T.ShaderMaterial({
+    transparent: true, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending,
+    vertexShader: `varying float vY; void main(){ vY = position.y; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `varying float vY; void main(){ float a = smoothstep(-70., -5., vY) * (1. - smoothstep(-6., 0., vY)) * .055; gl_FragColor = vec4(vec3(.62,.84,.95), a); }`
+  }));
+  const beamPivot = new T.Group(); beamPivot.position.set(60, 72, 0); beamPivot.add(searchBeam); scene.add(beamPivot);
+  const spot = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: glowTex, color: 0x9fd3e6, transparent: true, opacity: .16, depthWrite: false, blending: T.AdditiveBlending }));
+  spot.rotation.x = -Math.PI / 2; spot.scale.set(30, 30, 1); scene.add(spot);
+  const beamDir = new T.Vector3();
+  tickers.push((dt, t) => {
+    const a = t * .12, tilt = .62;
+    beamPivot.rotation.set(Math.sin(a) * tilt, 0, Math.cos(a) * tilt);
+    beamDir.set(0, -1, 0).applyEuler(beamPivot.rotation);
+    const k = -72 / beamDir.y; spot.position.set(60 + beamDir.x * k, .12, beamDir.z * k);
+  });
+
+  // blinking rack LEDs and flickering light pools
+  tickers.push((dt, t) => {
+    blinkers.forEach((b) => {
+      b.next -= dt;
+      if (b.next <= 0) { b.v = (b.v + 1 + Math.floor(Math.random() * 2)) % 3; b.rack.material[4] = frontMats[b.set][b.v]; b.next = .25 + Math.random() * 1.4; }
+    });
+  });
+
+  /* ---------- the DevOps loop: a floating infinity with the eight stages ---------- */
+  class Lemniscate extends T.Curve {
+    constructor(a) { super(); this.a = a; }
+    getPoint(t, out = new T.Vector3()) {
+      const u = t * Math.PI * 2, s = Math.sin(u), c = Math.cos(u), d = 1 + s * s;
+      return out.set(this.a * c / d, this.a * s * c / d * 1.15, Math.sin(u * 2) * 1.4);
+    }
+  }
+  const loop = new T.Group();
+  const lem = new Lemniscate(17);
+  const colorize = (geo) => {
+    const pos = geo.attributes.position, cols = new Float32Array(pos.count * 3);
+    const ca = new T.Color(COL.cyan), cb = new T.Color(COL.amber), cc = new T.Color();
+    for (let i = 0; i < pos.count; i++) { const k = T.MathUtils.smoothstep(pos.getX(i), -4, 4); cc.copy(ca).lerp(cb, k); cols.set([cc.r, cc.g, cc.b], i * 3); }
+    geo.setAttribute("color", new T.BufferAttribute(cols, 3)); return geo;
+  };
+  loop.add(new T.Mesh(colorize(new T.TubeGeometry(lem, 420, .34, 12, true)), new T.MeshBasicMaterial({ vertexColors: true })));
+  loop.add(new T.Mesh(colorize(new T.TubeGeometry(lem, 220, 1.1, 10, true)), new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: .16, blending: T.AdditiveBlending, depthWrite: false })));
+  const textSprite = (txt, color, size, weight = 600) => {
+    const c = document.createElement("canvas"), g = c.getContext("2d");
+    const font = `${weight} 64px "JetBrains Mono", ui-monospace, monospace`;
+    g.font = font; const w = Math.ceil(g.measureText(txt).width) + 48;
+    c.width = Math.max(128, w); c.height = 128;
+    g.font = font; g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = color; g.shadowColor = color; g.shadowBlur = 18;
+    g.fillText(txt, c.width / 2, 66);
+    const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace;
+    const s = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+    const h = size / 4; s.scale.set(h * c.width / 128, h, 1); return s;
+  };
+  const STAGES = [["PLAN", 1.82, "#6cc4e8"], ["CODE", 2.28, "#6cc4e8"], ["BUILD", 3.97, "#6cc4e8"], ["TEST", 4.43, "#6cc4e8"],
+                  ["RELEASE", 5.11, "#f2b650"], ["DEPLOY", 5.85, "#f2b650"], ["OPERATE", .43, "#f2b650"], ["MONITOR", 1.17, "#f2b650"]];
+  const stageLabels = [];
+  const drawLabels = () => {
+    stageLabels.forEach((s) => loop.remove(s)); stageLabels.length = 0;
+    STAGES.forEach(([name, u, col]) => {
+      const p = lem.getPoint(u / (Math.PI * 2));
+      const out = new T.Vector2(p.x - Math.sign(p.x) * 8.5, p.y).normalize();
+      const s = textSprite(name, col, 9.5); s.position.set(p.x + out.x * 3.4, p.y + out.y * 3.4, p.z + .5); loop.add(s); stageLabels.push(s);
+    });
+    const dev = textSprite("DEV", "rgba(108,196,232,.6)", 11, 700); dev.position.set(-9.8, 0, 0); loop.add(dev); stageLabels.push(dev);
+    const ops = textSprite("OPS", "rgba(242,182,80,.6)", 11, 700); ops.position.set(9.8, 0, 0); loop.add(ops); stageLabels.push(ops);
+  };
+  drawLabels();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawLabels);
+  const loopPackets = [];
+  for (let i = 0; i < 14; i++) { const s = glow(0xffffff, 1.6, 1); loop.add(s); loopPackets.push({ s, t: i / 14 }); }
+  loop.position.set(116, 26, -52);
+  const loopMats = [];
+  loop.traverse((o) => { if (o.material) { o.material.fog = false; o.material.transparent = true; o.material.userData.base = o.material.opacity; loopMats.push(o.material); } });
+  let loopAlpha = 1;
+  const loopAim = new T.Object3D();
+  scene.add(loop);
+  const lp = new T.Vector3();
+  tickers.push((dt, t) => {
+    loop.position.y = 26 + Math.sin(t * .6) * .8;
+    const want = progressNow < 1.6 || progressNow > 9.4 ? 1 : 0;
+    loopAlpha += (want - loopAlpha) * (dt === 0 ? 1 : 1 - Math.exp(-dt * 3));
+    loop.visible = loopAlpha > .02;
+    loopMats.forEach((m) => { m.opacity = m.userData.base * loopAlpha; });
+    loopAim.position.copy(loop.position); loopAim.lookAt(camera.position);
+    loop.quaternion.slerp(loopAim.quaternion, dt === 0 ? 1 : 1 - Math.exp(-dt * 2));
+    loopPackets.forEach((p) => {
+      p.t = (p.t + dt * .06) % 1; lem.getPoint(p.t, lp); p.s.position.copy(lp);
+      p.s.material.color.setHex(lp.x < 0 ? COL.cyan : COL.amber);
+    });
+  });
+
+  /* traffic packets along the request path; a second route ends at the promoted node */
+  const pathPts = [[-60, 9, 0], [0, 9, 0], [20, 4, 3], [36, 2.6, 0], [48, 2.6, -2], [62, 3.5, 2]];
+  const route = new T.CatmullRomCurve3([...pathPts, [80, 3.5, -8]].map((a) => new T.Vector3(...a)));
+  const routeB = new T.CatmullRomCurve3([...pathPts, [80, 3.5, 0]].map((a) => new T.Vector3(...a)));
+  scene.add(new T.Mesh(new T.TubeGeometry(route, 200, .07, 6, false), new T.MeshBasicMaterial({ color: 0x23404f, transparent: true, opacity: .8 })));
+  const PACKETS = MOBILE ? 18 : 34, packets = [];
+  for (let i = 0; i < PACKETS; i++) { const s = glow(COL.amber, 1.4, 1); scene.add(s); packets.push({ s, t: i / PACKETS }); }
+  const repl = [[new T.Vector3(80, 4.6, -8), new T.Vector3(80, 4.6, 0)], [new T.Vector3(80, 4.6, -8), new T.Vector3(80, 4.6, 8)]].map(([a, b]) => {
+    const l = new T.Line(new T.BufferGeometry().setFromPoints([a, b]), new T.LineBasicMaterial({ color: COL.green, transparent: true, opacity: .5 }));
+    scene.add(l); const s = glow(COL.green, 1.1, 1); scene.add(s); return { l, s, a, b, t: Math.random() };
+  });
+
+  /* camera keyframes, one per data-cam section */
+  const V = (x, y, z) => new T.Vector3(x, y, z);
+  const KEYS = [
+    { p: V(-34, 30, 62), t: V(52, 2, 0), f: 38 },   // hero
+    { p: V(-8, 46, 76), t: V(60, 0, 0), f: 38 },    // summary
+    { p: V(-112, 30, 56), t: V(-52, 22, -10), f: 44 }, // request: client + DNS sky
+    { p: V(-16, 7, 17), t: V(2, 7.5, 0), f: 48 },   // edge
+    { p: V(28, 15, 22), t: V(40, 1, 0), f: 42 },    // platform
+    { p: V(114, 20, 46), t: V(80, 3, 2), f: 40 },   // data
+    { p: V(60, 96, .1), t: V(60, 0, 0), f: 42 },    // observability, top-down
+    { p: V(104, 12, 30), t: V(122, 9, 0), f: 45 },  // delivery
+    { p: V(150, 9, 16), t: V(132, 7, 0), f: 44 },   // career, at the portal
+    { p: V(40, 70, 95), t: V(62, 0, 0), f: 36 },    // labs
+    { p: V(-30, 22, 52), t: V(60, 4, 0), f: 36 }    // contact
+  ];
+  let progressNow = 0;
+  const cam = { p: KEYS[0].p.clone(), t: KEYS[0].t.clone(), f: KEYS[0].f };
+  const goal = { p: KEYS[0].p.clone(), t: KEYS[0].t.clone(), f: KEYS[0].f };
+  const smooth = (k) => k * k * (3 - 2 * k);
+  let clock = 0, rolloutAt = -1, pulseAt = -1;
+  const entered = new Set();
+  function chapterEnter(i) {
+    if (entered.has(i)) return; entered.add(i);
+    if (i === 4 && !REDUCED) rolloutAt = clock;
+    if (i === 6) pulseAt = clock;
+  }
+  function scrollProgress() {
+    const mid = window.scrollY + window.innerHeight * .5;
+    const centers = sections.map((s) => s.offsetTop + s.offsetHeight / 2);
+    if (mid <= centers[0]) return 0;
+    for (let i = 0; i < centers.length - 1; i++) if (mid < centers[i + 1]) return i + (mid - centers[i]) / (centers[i + 1] - centers[i]);
+    return centers.length - 1;
+  }
+  function computeGoal() {
+    const progress = scrollProgress(); progressNow = progress;
+    const i = Math.min(Math.floor(progress), KEYS.length - 1), j = Math.min(i + 1, KEYS.length - 1);
+    const k = smooth(Math.min(1, Math.max(0, (progress - i) * 1.25 - .125)));
+    goal.p.lerpVectors(KEYS[i].p, KEYS[j].p, k);
+    goal.t.lerpVectors(KEYS[i].t, KEYS[j].t, k);
+    goal.f = KEYS[i].f + (KEYS[j].f - KEYS[i].f) * k;
+    const active = Math.round(progress);
+    chapterEnter(active);
+  }
+  let mx = 0, my = 0;
+  if (!MOBILE) window.addEventListener("pointermove", (e) => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; });
+
+  const incident = { t: 99, active: false };
+  SIM.onTick((t) => { incident.t = t; incident.active = t < 24; });
+
+  /* ---------- the client, the DNS constellation, the origin, and the journey of one request ---------- */
+  // client: a laptop and a phone at the far left, screens drawn on canvas
+  const screenTex = (w, h, url) => {
+    const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d");
+    g.fillStyle = "#0b1117"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#16222b"; g.fillRect(0, 0, w, h * .14);
+    g.fillStyle = "#0a1015"; g.fillRect(w * .06, h * .03, w * .88, h * .08);
+    g.fillStyle = "#5fd39a"; g.beginPath(); g.arc(w * .09, h * .07, h * .018, 0, 7); g.fill();
+    g.fillStyle = "#e2e9ee"; g.font = `500 ${Math.round(h * .05)}px "JetBrains Mono", monospace`; g.textBaseline = "middle"; g.fillText(url, w * .12, h * .072);
+    g.fillStyle = "#f2b650"; g.fillRect(w * .08, h * .22, w * .45, h * .06);
+    g.fillStyle = "#2a3a45"; for (let i = 0; i < 5; i++) g.fillRect(w * .08, h * (.34 + i * .1), w * (.84 - (i % 2) * .2), h * .04);
+    g.fillStyle = "#6cc4e8"; g.fillRect(w * .62, h * .22, w * .3, h * .2);
+    const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t;
+  };
+  const client = new T.Group();
+  const lapBase = new T.Mesh(new T.BoxGeometry(7, .3, 4.6), metal(0x1a2730)); lapBase.position.y = .15; client.add(lapBase);
+  const lapScreen = new T.Mesh(new T.PlaneGeometry(6.6, 4.1), new T.MeshBasicMaterial({ map: screenTex(660, 410, "school.example") }));
+  const lapLid = new T.Mesh(new T.BoxGeometry(7, 4.5, .18), metal(0x1a2730));
+  lapLid.position.set(0, 2.4, -2.25); lapLid.rotation.x = -.18; lapScreen.position.set(0, 0, .1); lapLid.add(lapScreen); client.add(lapLid);
+  const phone = new T.Mesh(new T.BoxGeometry(1.5, 3, .16), metal(0x1a2730));
+  const phoneScr = new T.Mesh(new T.PlaneGeometry(1.32, 2.7), new T.MeshBasicMaterial({ map: screenTex(264, 540, "school.example") }));
+  phoneScr.position.z = .09; phone.add(phoneScr); phone.position.set(5.6, 1.6, .4); phone.rotation.y = -.35; client.add(phone);
+  const clientGlow = glow(COL.cyan, 16, .25); clientGlow.position.set(0, 2.5, -1); client.add(clientGlow);
+  client.position.set(-82, 0, 0); client.rotation.y = -Math.PI / 2 + .3; client.scale.setScalar(1.5); scene.add(client);
+  pool(-82, 0, COL.cyan, 22);
+  const CLIENT_PT = new T.Vector3(-80, 3, 0);
+
+  // DNS constellation in the sky: resolver, root, TLD, authoritative (PowerDNS)
+  const DNS = {
+    resolver: new T.Vector3(-70, 16, -8), root: new T.Vector3(-64, 50, -26),
+    tld: new T.Vector3(-42, 57, -32), auth: new T.Vector3(-20, 49, -24)
+  };
+  const star = (pos, color, size) => {
+    const m = new T.Mesh(new T.OctahedronGeometry(size, 0), new T.MeshBasicMaterial({ color, wireframe: true }));
+    m.position.copy(pos); scene.add(m);
+    const core = new T.Mesh(new T.OctahedronGeometry(size * .45, 0), new T.MeshBasicMaterial({ color })); core.position.copy(pos); scene.add(core);
+    const g = glow(color, size * 7, .55); g.position.copy(pos); scene.add(g);
+    return { m, core, g };
+  };
+  const stars = { resolver: star(DNS.resolver, COL.cyan, .9), root: star(DNS.root, 0xe2e9ee, 1.4), tld: star(DNS.tld, COL.cyan, 1.2), auth: star(DNS.auth, COL.amber, 1.3) };
+  const constLine = new T.Line(new T.BufferGeometry().setFromPoints([DNS.resolver, DNS.root, DNS.tld, DNS.auth, DNS.resolver]),
+    new T.LineDashedMaterial({ color: 0x3b6577, dashSize: .8, gapSize: .6, transparent: true, opacity: .6 }));
+  constLine.computeLineDistances(); scene.add(constLine);
+
+  // origin: an nginx pylon between the CDN edge and the cluster
+  const pylon = new T.Group();
+  const pyBody = new T.Mesh(new T.BoxGeometry(1.6, 10, 1.6), metal(0x0e171d)); pyBody.position.y = 5; pylon.add(pyBody);
+  pyBody.add(edges(new T.BoxGeometry(1.6, 10, 1.6), 0x2c4554, .9));
+  for (let i = 0; i < 5; i++) { const s = new T.Mesh(new T.BoxGeometry(1.62, .07, 1.62), emiss(COL.cyan, 1.6)); s.position.y = 1.2 + i * 1.9; pylon.add(s); }
+  pylon.position.set(22, 0, 0); scene.add(pylon);
+  const ORIGIN_PT = new T.Vector3(22, 6, 0);
+
+  // labels
+  const label3d = (txt, col, pos, size = 6) => { const s = textSprite(txt, col, size); s.position.copy(pos); scene.add(s); return s; };
+  const labels = [
+    label3d("CLIENT · your browser", "#6cc4e8", new T.Vector3(-82, 11, 0), 8),
+    label3d("RESOLVER", "#6cc4e8", DNS.resolver.clone().add(new T.Vector3(0, 3, 0)), 6.5),
+    label3d("ROOT  .", "#e2e9ee", DNS.root.clone().add(new T.Vector3(0, 4, 0)), 7.5),
+    label3d("TLD  .ir", "#6cc4e8", DNS.tld.clone().add(new T.Vector3(0, 3.8, 0)), 7.5),
+    label3d("AUTH DNS · PowerDNS", "#f2b650", DNS.auth.clone().add(new T.Vector3(0, 3.8, 0)), 8.5),
+    label3d("CDN EDGE · TLS", "#6cc4e8", new T.Vector3(0, 20.5, 0), 7),
+    label3d("ORIGIN · nginx", "#6cc4e8", new T.Vector3(22, 12, 0), 6.5),
+    label3d("KUBERNETES", "#6cc4e8", new T.Vector3(40, 11.5, 0), 6.5),
+    label3d("DATABASE", "#5fd39a", new T.Vector3(80, 10.5, 0), 6),
+    label3d("MONITORING", "#5fd39a", new T.Vector3(40, 27.5, 0), 6.5)
+  ];
+  labels.forEach((l) => { l.material.opacity = .85; });
+
+  // the comet: one request, with a fading trail
+  const comet = glow(0xffffff, 3.2, 1); scene.add(comet); comet.visible = false;
+  const cometCore = glow(0xffffff, 1.2, 1); comet.add(cometCore);
+  const TRAIL = 36, trailPos = new Float32Array(TRAIL * 3), trailCol = new Float32Array(TRAIL * 3);
+  const trailGeo = new T.BufferGeometry();
+  trailGeo.setAttribute("position", new T.BufferAttribute(trailPos, 3)); trailGeo.setAttribute("color", new T.BufferAttribute(trailCol, 3));
+  const trail = new T.Points(trailGeo, new T.PointsMaterial({ size: 1.1, map: glowTex, vertexColors: true, transparent: true, depthWrite: false, blending: T.AdditiveBlending }));
+  trail.frustumCulled = false; trail.visible = false; scene.add(trail);
+  const P = (x, y, z) => new T.Vector3(x, y, z);
+  const GATE = P(0, 9, 0), POD = P(40, 7.6, 0), DBP = P(80, 4.2, -8);
+  const arc = (a, b, lift) => new T.QuadraticBezierCurve3(a, a.clone().lerp(b, .5).add(P(0, lift, 0)), b);
+  // [start, end, curve, color]
+  const LEGS = [
+    [1.0, 1.5, arc(CLIENT_PT, DNS.resolver, 4), COL.cyan],
+    [1.5, 2.2, arc(DNS.resolver, DNS.root, 6), COL.cyan],
+    [2.2, 2.9, arc(DNS.root, DNS.tld, 5), COL.cyan],
+    [2.9, 3.6, arc(DNS.tld, DNS.auth, 5), COL.amber],
+    [3.6, 4.2, arc(DNS.auth, DNS.resolver, 8), COL.amber],
+    [4.2, 4.6, arc(DNS.resolver, CLIENT_PT, 2), COL.amber],
+    [4.6, 6.0, arc(CLIENT_PT, GATE, 10), COL.amber],
+    [6.0, 6.8, arc(GATE, ORIGIN_PT, 3), COL.amber],
+    [6.8, 7.6, arc(ORIGIN_PT, POD, 4), COL.amber],
+    [7.6, 8.6, arc(POD, DBP, 5), COL.amber],
+    [8.6, 9.3, arc(DBP, POD, 5), COL.green],
+    [9.3, 9.9, arc(POD, ORIGIN_PT, 4), COL.green],
+    [9.9, 10.4, arc(ORIGIN_PT, GATE, 3), COL.green],
+    [10.4, 11.2, arc(GATE, CLIENT_PT, 10), COL.green]
+  ];
+  // camera shots that follow the comet
+  const SHOTS = [
+    [0.0, P(-108, 12, 22), P(-80, 5, 0), 40],
+    [1.1, P(-98, 30, 42), P(-50, 40, -18), 46],
+    [4.4, P(-66, 18, 36), P(-34, 9, 0), 44],
+    [5.9, P(-16, 10, 16), P(4, 8, 0), 48],
+    [7.0, P(8, 12, 20), P(32, 5, 0), 44],
+    [8.2, P(62, 13, 24), P(78, 4, -5), 42],
+    [10.2, P(-40, 44, 86), P(-26, 10, 0), 40],
+    [12.6, P(-40, 44, 86), P(-26, 10, 0), 40]
+  ];
+  const jState = { t: 99, active: false };
+  function shiftRight(p, t, k) {   // move the subject toward the right of the frame
+    const fwd = t.clone().sub(p), right = fwd.clone().cross(new T.Vector3(0, 1, 0)).normalize();
+    t.addScaledVector(right, -fwd.length() * k);
+  }
+  if (innerWidth > 900) shiftRight(KEYS[2].p, KEYS[2].t, .3);
+  JOURNEY.onTick((t, active) => { jState.t = t; jState.active = active; if (!active) computeGoal(); });
+  const reqSection = document.getElementById("request");
+  const cPos = new T.Vector3(), cCol = new T.Color();
+  tickers.push((dt, t) => {
+    const jt = jState.t, on = jState.active;
+    // comet along the current leg
+    let leg = null; for (const L of LEGS) if (jt >= L[0] && jt < L[1]) { leg = L; break; }
+    comet.visible = on && !!leg; trail.visible = on;
+    if (leg) {
+      const k = (jt - leg[0]) / (leg[1] - leg[0]);
+      leg[2].getPoint(k, cPos); comet.position.copy(cPos); comet.material.color.setHex(leg[3]); cCol.setHex(leg[3]);
+      for (let i = TRAIL - 1; i > 0; i--) { trailPos[i * 3] = trailPos[(i - 1) * 3]; trailPos[i * 3 + 1] = trailPos[(i - 1) * 3 + 1]; trailPos[i * 3 + 2] = trailPos[(i - 1) * 3 + 2]; }
+      trailPos[0] = cPos.x; trailPos[1] = cPos.y; trailPos[2] = cPos.z;
+      for (let i = 0; i < TRAIL; i++) { const f = 1 - i / TRAIL; trailCol[i * 3] = cCol.r * f; trailCol[i * 3 + 1] = cCol.g * f; trailCol[i * 3 + 2] = cCol.b * f; }
+      trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
+    } else if (!on) { trailPos.fill(-999); trailGeo.attributes.position.needsUpdate = true; }
+    // stars pulse when the query reaches them
+    const hit = (a, b) => on && jt >= a && jt < b;
+    stars.resolver.g.material.opacity = hit(1.4, 1.7) || hit(4.1, 4.4) ? 1 : .5;
+    stars.root.g.material.opacity = hit(2.1, 2.5) ? 1 : .5;
+    stars.tld.g.material.opacity = hit(2.8, 3.2) ? 1 : .5;
+    stars.auth.g.material.opacity = hit(3.5, 3.9) ? 1 : .5;
+    Object.values(stars).forEach((s, i) => { s.m.rotation.y += dt * (.4 + i * .1); s.m.rotation.x += dt * .2; });
+    // the CDN gate flashes on the TLS handshake, the pylon on the origin hop
+    rings.forEach((r) => { r.material.emissiveIntensity = hit(5.6, 6.3) ? 2.8 : .9; });
+    gateGlow.material.opacity = hit(5.6, 6.3) ? .8 : .3;
+    pylon.children.forEach((c) => { if (c.material && c.material.emissive) c.material.emissiveIntensity = hit(6.6, 7.0) || hit(9.7, 10.1) ? 3.5 : 1.6; });
+    // monitoring eyes flash at the end, as the probe replays the path
+    if (hit(11.2, 12.4)) drops.forEach((d) => { d.material.opacity = 1; });
+    lapScreen.material.color.setScalar(on && jt > 10.9 ? 1.25 : 1);
+  });
+  // camera override while the journey plays and its chapter is on screen
+  const journeyCam = (out) => {
+    if (!jState.active) return false;
+    const r = reqSection.getBoundingClientRect();
+    if (r.bottom < innerHeight * .25 || r.top > innerHeight * .75) return false;
+    const jt = jState.t; let i = 0;
+    while (i < SHOTS.length - 2 && jt >= SHOTS[i + 1][0]) i++;
+    const a = SHOTS[i], b = SHOTS[i + 1], k = smooth(Math.min(1, Math.max(0, (jt - a[0]) / (b[0] - a[0]))));
+    out.p.lerpVectors(a[1], b[1], k); out.t.lerpVectors(a[2], b[2], k); out.f = a[3] + (b[3] - a[3]) * k;
+    if (innerWidth > 900) shiftRight(out.p, out.t, .3);
+    return true;
+  };
+
+  let vw = 0, vh = 0;
+  function resize(force) {
+    const w = innerWidth, h = innerHeight;
+    if (!force && MOBILE && w === vw && Math.abs(h - vh) < 120) return;   // ignore address-bar jumps
+    vw = w; vh = h;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    if (w > 900) camera.setViewOffset(w, h, -w * .17, 0, w, h); else camera.clearViewOffset();
+    camera.updateProjectionMatrix();
+    computeGoal(); draw(0);
+  }
+  window.addEventListener("resize", () => resize(false));
+  window.addEventListener("scroll", () => {
+    computeGoal();
+    if (REDUCED) { cam.p.copy(goal.p); cam.t.copy(goal.t); cam.f = goal.f; draw(0); }
+  }, { passive: true });
+
+  let last = performance.now(), frames = 0, slow = 0, degraded = false, visible = true, lastScroll = window.scrollY, velocity = 0;
+  const tmp = new T.Vector3();
+  function draw(dt) {
+    clock += dt;
+    const jcam = journeyCam(goal);
+    const damp = REDUCED || dt === 0 ? 1 : 1 - Math.exp(-dt * (jcam ? 2.4 : 3.2));
+    if (dt > 0 || REDUCED) { cam.p.lerp(goal.p, damp); cam.t.lerp(goal.t, damp); cam.f += (goal.f - cam.f) * damp; }
+    camera.position.set(cam.p.x + mx * 3, cam.p.y - my * 2, cam.p.z);
+    camera.fov = cam.f; camera.updateProjectionMatrix();
+    camera.lookAt(cam.t);
+
+    const sv = Math.abs(window.scrollY - lastScroll); lastScroll = window.scrollY;
+    velocity += (Math.min(sv, 120) - velocity) * .1;
+    const rush = 1 + Math.min(3, velocity / 25);
+
+    for (let i = 0; i < DOMAINS; i++) {
+      let p = dSeed[i * 4] + dt * .045 * dSeed[i * 4 + 3] * rush; if (p > 1) p -= 1; dSeed[i * 4] = p;
+      const xx = -70 + p * 108, funnel = xx < 0 ? 1 : Math.max(.08, 1 - xx / 36);
+      dPos[i * 3] = xx; dPos[i * 3 + 1] = 9 + dSeed[i * 4 + 1] * funnel - (xx > 0 ? (xx / 38) * 6.5 : 0); dPos[i * 3 + 2] = dSeed[i * 4 + 2] * funnel;
+      const c = xx < 0 ? cGrey : cCyan; dCol[i * 3] = c.r; dCol[i * 3 + 1] = c.g; dCol[i * 3 + 2] = c.b;
+    }
+    dGeo.attributes.position.needsUpdate = true; dGeo.attributes.color.needsUpdate = true;
+    rings.forEach((r, i) => { r.rotation.x += dt * (.25 + i * .12) * (i % 2 ? -1 : 1); });
+
+    pods.forEach((p, i) => {
+      let sq = 1;
+      if (rolloutAt >= 0) {
+        const lt = clock - rolloutAt - i * .09;
+        if (lt > 0) { p.e.material.color.setHex(COL.green); p.m.material.emissive.setHex(COL.green); p.halo.material.color.setHex(COL.green); }
+        if (lt > 0 && lt < .5) sq = 1 - Math.sin(lt / .5 * Math.PI) * .45;
+      }
+      p.m.scale.set(1 + (1 - sq) * .6, sq, 1 + (1 - sq) * .6); p.m.position.y = p.base + Math.sin(clock * 1.4 + i * .7) * .18; p.m.rotation.y += dt * .5;
+    });
+    if (rolloutAt >= 0 && clock - rolloutAt < 3) $("#rollout").textContent = `${Math.max(0, Math.min(18, Math.floor((clock - rolloutAt) / .09)))}/18`;
+
+    const it = incident.t, inc = incident.active && it >= 0;
+    const primaryDown = inc && it < 22, promoted = incident.active && it >= 15.6, rejoined = incident.active && it >= 22;
+    const c0 = primaryDown ? COL.red : rejoined ? COL.green : COL.amber;
+    dbs[0].core.material.emissive.setHex(c0); dbs[0].core.material.color.setHex(c0);
+    dbs[0].core.material.emissiveIntensity = primaryDown && it < 1 ? (Math.sin(it * 40) > 0 ? 2.2 : .3) : primaryDown ? .9 : 1.6;
+    dbs[0].halo.material.color.setHex(c0); dbs[0].rims.forEach((r) => r.material.color.setHex(c0));
+    const c1 = promoted ? COL.amber : COL.green;
+    dbs[1].core.material.emissive.setHex(c1); dbs[1].core.material.color.setHex(c1);
+    dbs[1].halo.material.color.setHex(c1); dbs[1].rims.forEach((r) => r.material.color.setHex(c1));
+    if (inc && it < 15) { lock.position.z = -8; lock.scale.setScalar(.35 + .65 * (1 - it / 15)); lock.material.emissive.setHex(COL.red); lock.material.color.setHex(COL.red); }
+    else { lock.position.z = promoted ? 0 : -8; lock.scale.setScalar(1); lock.material.emissive.setHex(COL.amber); lock.material.color.setHex(COL.amber); }
+    lock.rotation.z += dt * .6;
+    if (incident.active && it >= 15.6 && it < 17) { const k = (it - 15.6) / 1.4; promo.scale.setScalar(1 + k * 2.2); promo.material.opacity = .8 * (1 - k); }
+    else promo.material.opacity = 0;
+
+    const writesDown = inc && it < 17.045;
+    const curve = promoted ? routeB : route;
+    packets.forEach((p) => {
+      if (!writesDown) p.t = (p.t + dt * .07 * rush) % 1;
+      curve.getPointAt(Math.min(.999, Math.max(0, p.t)), tmp); p.s.position.copy(tmp);
+      p.s.material.color.setHex(writesDown && p.t > .8 ? COL.red : COL.amber);
+    });
+    repl.forEach((r, i) => {
+      const on = !primaryDown;
+      r.l.visible = on; r.s.visible = on;
+      if (on) { r.t = (r.t + dt * .8) % 1; r.s.position.lerpVectors(r.a, r.b, r.t); }
+    });
+
+    floor.material.uniforms.uPulse.value = pulseAt >= 0 && clock - pulseAt < 3 ? (clock - pulseAt) * 40 : -1;
+    drops.forEach((d, i) => { d.material.opacity = .35 + .35 * (.5 + .5 * Math.sin(clock * 2 + i)); });
+
+    shaft.material.uniforms.uTime.value = clock;
+    const cyc = (clock % 3.2) / 3.2, fall = Math.min(1, cyc / .45);
+    commit.position.set(120, 32 - Math.pow(fall, 3) * 31.2, 0); commit.rotation.y += dt * 1.4; commit.visible = cyc < .5;
+    const ik = (cyc - .45) / .3; impact.material.opacity = ik > 0 && ik < 1 ? .9 * (1 - ik) : 0; impact.scale.setScalar(1 + Math.max(0, ik) * 4);
+    portalGlow.material.opacity = .14 + .08 * Math.sin(clock * 2);
+
+    tickers.forEach((f) => f(dt, clock));
+    renderer.render(scene, camera);
+  }
+  let rafId = 0;
+  function frame(now) {
+    rafId = 0;
+    if (!visible) return;
+    const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = Math.max(last, now);
+    draw(dt);
+    if (frames < 180) {   // adaptive quality in two steps if frames are slow
+      frames++; if (dt > .026) slow++;
+      if (frames === 90 && slow > 45) { degraded = true; DPR = 1; renderer.setPixelRatio(1); resize(true); slow = 0; }
+      if (frames === 180 && degraded && slow > 45) { renderer.setPixelRatio(.75); dust.visible = false; mists.forEach((m) => { m.visible = false; }); resize(true); }
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+  document.addEventListener("visibilitychange", () => {
+    visible = !document.hidden;
+    if (!visible && rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    if (visible && !rafId && !REDUCED) { last = performance.now(); rafId = requestAnimationFrame(frame); }
+  });
+  resize(true);
+  cam.p.copy(goal.p); cam.t.copy(goal.t); cam.f = goal.f;
+  draw(0);
+  if (REDUCED) { SIM.onTick(() => draw(0)); JOURNEY.onTick(() => draw(0)); }
+  else rafId = requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
