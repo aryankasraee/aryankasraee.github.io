@@ -201,7 +201,10 @@ h1 em { font-style: normal; color: var(--signal); }
 
 /* contact */
 .contact h2 { font-size: clamp(2.2rem, 5vw, 4rem); }
-.email { font: 500 clamp(1.05rem, 2.4vw, 1.5rem)/1.2 var(--font-data); color: var(--ink); user-select: all; word-break: break-all; }
+.email { justify-self: start; display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 0; border: 0; background: none; text-align: left; cursor: copy;
+  font: 500 clamp(1.05rem, 2.4vw, 1.5rem)/1.2 var(--font-data); color: var(--ink); word-break: break-all; }
+.email:hover .addr { text-decoration: underline; text-decoration-color: var(--signal); text-underline-offset: 4px; }
+.email .hint { font: 500 .68rem/1 var(--font-data); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); word-break: normal; }
 .note { font: 400 .78rem var(--font-data); min-height: 1.2em; }
 .note.ok { color: var(--ok); } .note.warn { color: var(--signal); }
 footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px; margin: 0 auto; font: 400 .74rem/1.6 var(--font-data); color: var(--dim); }
@@ -467,9 +470,9 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
       <div class="label"><span class="n">08</span> / contact</div>
       <h2 id="con-h">Let's talk.</h2>
       <p class="plain">Remote or relocation. Email is the fastest way to reach me.</p>
-      <div class="email" id="email">aryankasraee@gmail.com</div>
+      <button class="email" id="email" type="button" aria-describedby="copy-note"><span class="addr">aryankasraee@gmail.com</span><span class="hint">click to copy</span></button>
       <div class="links">
-        <button class="btn primary" id="copy" type="button">Copy email</button>
+        <a class="btn primary" href="mailto:aryankasraee@gmail.com?subject=Hi%20Aryan">Email me</a>
         <a class="btn" href="https://www.linkedin.com/in/aryan-kasraee">LinkedIn</a>
         <a class="btn" href="https://github.com/aryankasraee">GitHub</a>
         <a class="btn" href="https://aryankasraee.ir">aryankasraee.ir</a>
@@ -523,14 +526,15 @@ whenVisible($("#career-track"), async () => {
 
 /* ---------------- copy ---------------- */
 let noteTimer = 0;
-$("#copy").addEventListener("click", () => {
-  const note = $("#copy-note"), email = $("#email").textContent.trim();
+if (window.matchMedia("(pointer: coarse)").matches) $("#email .hint").textContent = "tap to copy";
+$("#email").addEventListener("click", () => {
+  const note = $("#copy-note"), email = $("#email .addr").textContent.trim();
   const fallback = () => {
-    const r = document.createRange(); r.selectNodeContents($("#email"));
+    const r = document.createRange(); r.selectNodeContents($("#email .addr"));
     const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
     note.className = "note warn"; note.textContent = "Selected. Press Cmd/Ctrl+C to copy.";
   };
-  try { navigator.clipboard.writeText(email).then(() => { note.className = "note ok"; note.textContent = "Copied to clipboard."; }, fallback); }
+  try { navigator.clipboard.writeText(email).then(() => { note.className = "note ok"; note.textContent = "Copied: " + email; }, fallback); }
   catch (e) { fallback(); }
   clearTimeout(noteTimer); noteTimer = setTimeout(() => { note.textContent = ""; }, 4000);
 });
