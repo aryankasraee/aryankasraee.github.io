@@ -97,6 +97,8 @@ h2 { font: 700 clamp(1.9rem, 3.4vw, 2.7rem)/1.02 var(--font-display); margin: 0;
 .lesson { border-left: 2px solid var(--signal); padding: 4px 0 4px 12px; font-size: .9rem; color: var(--ink); }
 .lesson > b { display: block; font: 600 .68rem/1.6 var(--font-data); letter-spacing: .12em; text-transform: uppercase; color: var(--signal); }
 .links { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.more { display: grid; gap: 14px; }
+.more-btn { display: none; font: 600 .74rem/1 var(--font-data); letter-spacing: .1em; text-transform: uppercase; color: var(--info); background: none; border: 1px solid rgba(108, 196, 232, .35); border-radius: 4px; padding: 9px 11px; cursor: pointer; }
 .btn { font: 600 .82rem/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; padding: 12px 14px; border-radius: 4px; border: 1px solid var(--glass-line); background: rgba(255, 255, 255, .03); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .btn:hover { border-color: var(--info); text-decoration: none; }
 .btn.primary { background: var(--signal); color: #1a1205; border-color: var(--signal); }
@@ -233,7 +235,17 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
 @media (max-width: 1180px) { .chapters-nav { display: none; } }
 @media (max-width: 900px) {
   .chapters-nav, .strip .hide-s { display: none; }
-  .chapter { min-height: auto; padding-block: 26vh 4vh; }
+  .chapter { min-height: 100svh; align-items: flex-end; padding-block: 56svh 5svh; }
+  .chapter .panel { background: rgba(6, 9, 12, .7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .chapter .panel h2 { text-shadow: 0 2px 18px rgba(0, 0, 0, .8); }
+  .panel .more { display: none; }
+  .panel.open .more { display: grid; }
+  .more-btn { display: inline-flex; justify-self: start; }
+  .hero { min-height: 100svh; align-content: end; padding-block: 34svh 7svh; }
+  .hero::before { left: calc(50% - 50vw); width: 100vw;
+    background: linear-gradient(180deg, transparent 0%, transparent 22%, rgba(3,5,8,.7) 46%, rgba(3,5,8,.94) 70%); }
+  .scroll-cue { display: none; }
+  .summary { padding-block: 10svh 6svh; }
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .how { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel, .panel.wide, .panel.xwide { width: 100%; }
@@ -351,7 +363,7 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
       <div class="label"><span class="n">02</span> / platform · Kubernetes, Docker</div>
       <h2 id="plat-h">Clusters that deploy even when the internet doesn't cooperate.</h2>
       <p class="plain">Most public registries are blocked from Iran. I keep production shipping anyway.</p>
-      <div class="big"><span class="num" id="rollout">18/18</span><span class="unit">app instances updated one at a time with no downtime: a rolling deploy, replayed on the right</span></div>
+      <div class="big"><span class="num" id="rollout">18/18</span><span class="unit">app instances updated one at a time with no downtime: a rolling deploy, replayed in the 3D view</span></div>
       <ul class="facts">
         <li><b class="p">at work</b><span><strong>Harbor</strong> as an in-country registry, so deployments stop depending on blocked registries; mirrors and toolcaches for CI.</span></li>
         <li><b class="l">my lab</b><span><strong>gitops-platform</strong>: Argo CD app-of-apps on kind, dev and staging from one set of manifests, default-deny network policy proven on a live cluster.</span></li>
@@ -661,6 +673,27 @@ const JOURNEY = (() => {
   return { run, onTick: (f) => listeners.push(f), get ran() { return ran; }, END };
 })();
 whenVisible($("#request"), () => { setTimeout(() => { if (!JOURNEY.ran) JOURNEY.run(); }, 1200); }, 0.55);
+
+/* ---------------- collapsible detail on phones ---------------- */
+document.querySelectorAll(".chapter .panel").forEach((panel) => {
+  const kids = [...panel.children];
+  const first = kids.findIndex((k) => k.matches(".facts, .lesson, .hops, .labs, .sim-note"));
+  if (first < 0) return;
+  const more = document.createElement("div"); more.className = "more";
+  const id = "more-" + (panel.closest("section").id || Math.random().toString(36).slice(2));
+  more.id = id;
+  kids.slice(first).forEach((k) => more.appendChild(k));
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "more-btn"; btn.setAttribute("aria-expanded", "false"); btn.setAttribute("aria-controls", id);
+  btn.textContent = panel.querySelector(".labs") ? "Show the 7 labs ▾" : "More detail ▾";
+  const label = btn.textContent;
+  btn.addEventListener("click", () => {
+    const open = panel.classList.toggle("open");
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = open ? "Less ▴" : label;
+  });
+  panel.append(btn, more);
+});
 
 /* ---------------- chapters ---------------- */
 const sections = [...document.querySelectorAll("[data-cam]")];
@@ -1054,6 +1087,10 @@ window.addEventListener("scroll", highlightNav, { passive: true }); highlightNav
     { p: V(40, 70, 95), t: V(62, 0, 0), f: 36 },    // labs
     { p: V(-30, 22, 52), t: V(60, 4, 0), f: 36 }    // contact
   ];
+  if (MOBILE && innerWidth <= 900) {   // portrait framings: the infinity loop in the hero, the client and DNS sky for the request
+    KEYS[0] = { p: V(38, 34, 52), t: V(112, 22, -48), f: 40 };
+    KEYS[2] = { p: V(-112, 16, 30), t: V(-70, 20, -10), f: 48 };
+  }
   let progressNow = 0;
   const cam = { p: KEYS[0].p.clone(), t: KEYS[0].t.clone(), f: KEYS[0].f };
   const goal = { p: KEYS[0].p.clone(), t: KEYS[0].t.clone(), f: KEYS[0].f };
@@ -1067,7 +1104,7 @@ window.addEventListener("scroll", highlightNav, { passive: true }); highlightNav
   }
   function scrollProgress() {
     const mid = window.scrollY + window.innerHeight * .5;
-    const centers = sections.map((s) => s.offsetTop + s.offsetHeight / 2);
+    const centers = sections.map((s) => s.offsetTop + s.offsetHeight * (MOBILE && s.classList.contains("chapter") ? .3 : .5));
     if (mid <= centers[0]) return 0;
     for (let i = 0; i < centers.length - 1; i++) if (mid < centers[i + 1]) return i + (mid - centers[i]) / (centers[i + 1] - centers[i]);
     return centers.length - 1;
@@ -1252,7 +1289,8 @@ window.addEventListener("scroll", highlightNav, { passive: true }); highlightNav
     vw = w; vh = h;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    if (w > 900) camera.setViewOffset(w, h, -w * .17, 0, w, h); else camera.clearViewOffset();
+    if (w > 900) camera.setViewOffset(w, h, -w * .17, 0, w, h);
+    else camera.setViewOffset(w, h, 0, h * .2, w, h);   // phones: subject sits in the top half, above the panel
     camera.updateProjectionMatrix();
     computeGoal(); draw(0);
   }
