@@ -90,7 +90,7 @@ h2 { font: 700 clamp(1.9rem, 3.4vw, 2.7rem)/1.02 var(--font-display); margin: 0;
 .big .num { font: 700 clamp(3rem, 6.4vw, 5.2rem)/.9 var(--font-data); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
 .big .unit { font: 500 1rem/1.3 var(--font-data); color: var(--dim); max-width: 26ch; }
 .facts { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.facts li { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; font-size: .93rem; color: var(--dim); }
+.facts li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; font-size: .93rem; color: var(--dim); }
 .facts li b { font: 600 .66rem/1.9 var(--font-data); letter-spacing: .1em; text-transform: uppercase; }
 .facts li b.p { color: var(--ok); } .facts li b.l { color: var(--info); }
 .facts li span strong { color: var(--ink); font-weight: 500; }
@@ -134,6 +134,10 @@ h1 em { font-style: normal; color: var(--signal); }
 .kv dd { margin: 0; font-size: .98rem; color: var(--ink); }
 .kv dd small { display: block; color: var(--dim); font-size: .82rem; margin-top: 2px; }
 .keywords { font: 400 .84rem/1.7 var(--font-data); color: var(--dim); margin: 0; }
+.how { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.how div { display: grid; gap: 6px; align-content: start; border-top: 2px solid var(--signal); padding-top: 10px; }
+.how b { font: 600 1rem/1.2 var(--font-display); color: var(--ink); }
+.how span { font-size: .88rem; color: var(--dim); }
 .keywords b { color: var(--ink); font-weight: 500; }
 
 /* incident simulator */
@@ -231,6 +235,7 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
   .chapters-nav, .strip .hide-s { display: none; }
   .chapter { min-height: auto; padding-block: 26vh 4vh; }
   .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .how { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel, .panel.wide, .panel.xwide { width: 100%; }
   .career { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .cs { grid-template-columns: 44px minmax(0, 1fr); justify-items: start; text-align: left; column-gap: 14px; }
@@ -243,8 +248,9 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
   .strip .hide-xs { display: none; }
   .panel { padding: 20px 16px; }
   .tl li { grid-template-columns: 74px 14px minmax(0, 1fr); }
-  .facts li { grid-template-columns: 60px minmax(0, 1fr); }
+  .facts li { grid-template-columns: 66px minmax(0, 1fr); }
   .kv { grid-template-columns: minmax(0, 1fr); }
+  .how { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -276,7 +282,7 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
   <section class="col hero" id="top" data-cam="0">
     <div class="eyebrow">DevOps / SRE engineer · Kubernetes · HA databases</div>
     <h1><span class="line"><span>I break things</span></span><span class="line"><span>on purpose, so</span></span><span class="line"><span>production <em>doesn't.</em></span></span></h1>
-    <p class="value">DevOps/SRE engineer with <strong>4+ years</strong> running Kubernetes, high-availability PostgreSQL and MongoDB, and a self-hosted DNS and TLS edge for <strong>2,000+ domains</strong> at a multi-tenant SaaS. I rehearse failures in drills and publish them. <strong>Open to remote or relocation.</strong></p>
+    <p class="value">I'm a DevOps/SRE engineer with <strong>4+ years</strong> of building and running Kubernetes platforms, highly available databases and the DNS and TLS edge in front of them. I don't trust a system until I've <strong>broken it on purpose</strong> and watched it recover, so I rehearse failures and publish the drills. <strong>Open to remote or relocation.</strong></p>
     <div class="links">
       <a class="btn primary" href="#contact">Email Aryan</a>
       <a class="btn danger" href="#data" id="hero-kill">Watch a database failover ▸</a>
@@ -291,11 +297,17 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
       <dl class="kv">
         <div><dt>Role</dt><dd>DevOps / SRE Engineer<small>platform, reliability, delivery</small></dd></div>
         <div><dt>Experience</dt><dd>4+ years in DevOps<small>since Jan 2022 · two of four roles part-time</small></dd></div>
-        <div><dt>Now</dt><dd>DevOps Engineer, Classeh<small>school management SaaS · since May 2025</small></dd></div>
+        <div><dt>Now</dt><dd>DevOps Engineer<small>multi-tenant SaaS · since May 2025</small></dd></div>
         <div><dt>Location</dt><dd>Tehran, Iran · UTC+3:30<small>open to remote and relocation</small></dd></div>
-        <div><dt>Runs in production</dt><dd>Kubernetes clusters, replicated PostgreSQL and MongoDB databases, DNS for 2,000+ domains<small>self-hosted, on restricted networks</small></dd></div>
+        <div><dt>Hands-on with</dt><dd>Kubernetes, replicated PostgreSQL and MongoDB, self-hosted DNS and TLS, monitoring<small>mostly self-hosted, often on restricted networks</small></dd></div>
         <div><dt>Contact</dt><dd><a href="#contact">aryankasraee@gmail.com</a><small>email is fastest</small></dd></div>
       </dl>
+      <div class="how">
+        <div><b>Measure, don't assume</b><span>Every claim on this page has a number behind it, and every number links to the repo that produced it.</span></div>
+        <div><b>Rehearse failure</b><span>I kill primaries, restore backups and inject errors in drills, so the first time isn't during an outage.</span></div>
+        <div><b>Automate the boring path</b><span>Infrastructure as code, GitOps and CI that fails loudly. If I did it twice by hand, it becomes a script.</span></div>
+        <div><b>Write it down</b><span>Runbooks, postmortems and READMEs that someone else can follow at 3 a.m.</span></div>
+      </div>
       <p class="keywords"><b>Keywords:</b> Kubernetes · Docker · Helm · Argo CD · GitOps · Terraform · Ansible · CI/CD (GitHub Actions, GitLab CI, Jenkins) · Prometheus · Grafana · Loki · ELK · PostgreSQL · Patroni · MongoDB · Valkey/Redis · Nginx · Caddy · PowerDNS · TLS/ACME · Linux · AWS (EC2, S3) · Python · Shell</p>
     </div>
   </section>
@@ -303,31 +315,31 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
   <section class="col chapter" id="request" data-cam="2" aria-labelledby="req-h">
     <div class="panel wide">
       <div class="label"><span class="n">00</span> / the request · browser to database and back</div>
-      <h2 id="req-h">What happens when someone opens a school's website.</h2>
-      <p class="plain">Follow one request through everything I run. The timings are real: medians of 876 probes my monitoring sent to one of the school sites, through the CDN, over 12 hours.</p>
+      <h2 id="req-h">What happens between Enter and the first byte.</h2>
+      <p class="plain">Follow one request through a stack I run, from the browser to the database and back. The timings are real: medians of 876 probes my own monitoring sent to a production site, through the CDN, over 12 hours.</p>
       <div class="browser">
         <div class="bar">
           <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="url"><span class="lock" aria-hidden="true">●</span><span id="url-text">https://school.example</span><span class="caret" aria-hidden="true"></span></span>
+          <span class="url"><span class="lock" aria-hidden="true">●</span><span id="url-text">https://site.example</span><span class="caret" aria-hidden="true"></span></span>
           <button class="btn primary go" id="req-btn" type="button">Enter ⏎</button>
         </div>
         <div class="wf" id="wf" role="img" aria-label="Request timing waterfall: DNS 82.8 ms, TCP 1.0 ms, TLS 7.4 ms, server 7.7 ms, transfer 0.2 ms"></div>
         <div class="wf-total"><span>total <b>~101 ms</b> median · 876 probes</span><span id="wf-insight">DNS is <b>82%</b> of it. Browsers cache it, so a returning visitor usually skips that step.</span></div>
       </div>
       <ol class="hops" id="hops" aria-live="polite"></ol>
-      <p class="sim-note">The school's real hostname is hidden. Probes run every 15 s from my monitoring host through the public CDN path; numbers are 12-hour medians from Prometheus.</p>
+      <p class="sim-note">The site's real hostname is hidden. Probes run every 15 s from my monitoring host through the public CDN path; numbers are 12-hour medians from Prometheus.</p>
     </div>
   </section>
 
   <section class="col chapter" id="edge" data-cam="2" aria-labelledby="edge-h">
     <div class="panel">
       <div class="label"><span class="n">01</span> / edge · DNS, CDN, TLS</div>
-      <h2 id="edge-h">Every school gets its own domain, and its own certificate.</h2>
-      <p class="plain">Schools bring their own web addresses. I run the DNS and HTTPS front door that answers for all of them.</p>
-      <div class="big"><span class="num">2,000+</span><span class="unit">domains on a self-hosted PowerDNS edge</span></div>
+      <h2 id="edge-h">I run the front door: DNS, CDN and TLS.</h2>
+      <p class="plain">When customers bring their own domains, someone has to answer DNS for them and hand out certificates without opening the door to abuse. That's the part I build.</p>
+      <div class="big"><span class="num">0<small style="font-size:.45em;color:var(--dim)"> vs 30</small></span><span class="unit">certificate orders from a flood of made-up names, with my allowlist gate on vs off</span></div>
       <ul class="facts">
-        <li><b class="p">prod</b><span><strong>PowerDNS</strong> with API-driven automation and automated certificate issuance and renewal at Classeh.</span></li>
-        <li><b class="l">lab</b><span><strong>tls-edge-on-demand</strong>: an allowlist gate in front of on-demand TLS. A flood of 30 made-up names caused <strong>0</strong> certificate orders, against <strong>30</strong> with the gate off.</span></li>
+        <li><b class="p">at work</b><span>Self-hosted <strong>PowerDNS</strong> with API-driven automation, and certificates issued and renewed automatically for customer domains.</span></li>
+        <li><b class="l">my lab</b><span><strong>tls-edge-on-demand</strong>: Caddy on-demand TLS behind an allowlist service I wrote, with a drill that floods it with made-up names.</span></li>
       </ul>
       <div class="lesson"><b>Learned</b>Removing a tenant from the allowlist does not revoke its certificate. It keeps being served from cache, so cutting someone off also means stopping their traffic.</div>
       <div class="links"><a href="https://github.com/aryankasraee/tls-edge-on-demand">tls-edge-on-demand →</a></div>
@@ -341,8 +353,8 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
       <p class="plain">Most public registries are blocked from Iran. I keep production shipping anyway.</p>
       <div class="big"><span class="num" id="rollout">18/18</span><span class="unit">app instances updated one at a time with no downtime: a rolling deploy, replayed on the right</span></div>
       <ul class="facts">
-        <li><b class="p">prod</b><span><strong>Harbor</strong> as an in-country registry, so deployments stop depending on blocked registries; mirrors and toolcaches for CI.</span></li>
-        <li><b class="l">lab</b><span><strong>gitops-platform</strong>: Argo CD app-of-apps on kind, dev and staging from one set of manifests, default-deny network policy proven on a live cluster.</span></li>
+        <li><b class="p">at work</b><span><strong>Harbor</strong> as an in-country registry, so deployments stop depending on blocked registries; mirrors and toolcaches for CI.</span></li>
+        <li><b class="l">my lab</b><span><strong>gitops-platform</strong>: Argo CD app-of-apps on kind, dev and staging from one set of manifests, default-deny network policy proven on a live cluster.</span></li>
       </ul>
       <div class="lesson"><b>Learned</b>"Synced / Healthy" in Argo CD can be stale. The wait script checks that the synced revision equals the commit just pushed.</div>
       <div class="links"><a href="https://github.com/aryankasraee/gitops-platform">gitops-platform →</a></div>
@@ -369,8 +381,8 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
         <p class="sim-note">Lab replay at 3× speed. Measured run: largest gap between two acknowledged writes 17,045 ms; 0 acknowledged writes lost; old primary rejoined as a replica.</p>
       </div>
       <ul class="facts">
-        <li><b class="p">prod</b><span><strong>Patroni PostgreSQL</strong>, <strong>MongoDB replica sets</strong> and <strong>Valkey with Sentinel</strong> at Classeh: failovers, replica rebuilds, backups.</span></li>
-        <li><b class="l">lab</b><span><strong>Why 17 s:</strong> nobody is promoted until the dead leader's lock expires (ttl 15 s) and HAProxy notices (2 × 1 s checks). <strong>Why 0 lost:</strong> synchronous replication acknowledges a commit only once a standby has it.</span></li>
+        <li><b class="p">at work</b><span><strong>Patroni PostgreSQL</strong>, <strong>MongoDB replica sets</strong> and <strong>Valkey with Sentinel</strong>: failovers, replica rebuilds and backups I handle in production.</span></li>
+        <li><b class="l">my lab</b><span><strong>Why 17 s:</strong> nobody is promoted until the dead leader's lock expires (ttl 15 s) and HAProxy notices (2 × 1 s checks). <strong>Why 0 lost:</strong> synchronous replication acknowledges a commit only once a standby has it.</span></li>
       </ul>
       <div class="lesson"><b>Learned</b>The first restore from backup failed: Patroni writes absolute paths into postgresql.conf. You only find that out by restoring.</div>
       <div class="links"><a href="https://github.com/aryankasraee/patroni-ha-lab">patroni-ha-lab →</a></div>
@@ -384,8 +396,8 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
       <p class="plain">I built the monitoring for a production server from scratch with Terraform, then ran it under synthetic traffic overnight.</p>
       <div class="big"><span class="num">0</span><span class="unit">failed of 243,360 requests in a 9-hour synthetic soak (~7.5 req/s, p95 9 ms)</span></div>
       <ul class="facts">
-        <li><b class="p">prod host</b><span><strong>infra-observability</strong>: Prometheus, Alertmanager, Grafana, Loki and Alloy deployed by Terraform; nginx logs turned into per-site error and latency metrics; 22 alert rules.</span></li>
-        <li><b class="l">lab</b><span><strong>sre-observability</strong>: multi-window burn-rate SLO alerts, unit-tested with promtool. The page fires about 20 s after injecting 30% errors and clears about 14 s after the fix.</span></li>
+        <li><b class="p">my build</b><span><strong>infra-observability</strong>: Prometheus, Alertmanager, Grafana, Loki and Alloy deployed by Terraform; nginx logs turned into per-site error and latency metrics; 22 alert rules.</span></li>
+        <li><b class="l">my lab</b><span><strong>sre-observability</strong>: multi-window burn-rate SLO alerts, unit-tested with promtool. The page fires about 20 s after injecting 30% errors and clears about 14 s after the fix.</span></li>
       </ul>
       <div class="lesson"><b>Incident · 5–6 Oct 2026 · my own monitoring stack</b>
         <ol class="tl">
@@ -406,9 +418,9 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
       <h2 id="del-h">Pipelines that tell the truth.</h2>
       <p class="plain">Every change reaches production through git, and through a pipeline that fails loudly instead of quietly.</p>
       <ul class="facts">
-        <li><b class="p">prod</b><span>Jenkins, Argo CD, GitLab CI and Gitea Actions across development, staging and production; SonarQube code inspection.</span></li>
-        <li><b class="l">lab</b><span><strong>ci-cd-reference</strong>: toolchain preflight, secret scanning, matrix builds with SBOMs, one required gate, and a watchdog that opens an issue when the newest commit on main was never tested.</span></li>
-        <li><b class="l">lab</b><span><strong>sre-runbooks</strong>: on-call runbooks that each state how they were verified; CI rejects one with a missing section.</span></li>
+        <li><b class="p">at work</b><span>Jenkins, Argo CD, GitLab CI and Gitea Actions across development, staging and production; SonarQube code inspection.</span></li>
+        <li><b class="l">my lab</b><span><strong>ci-cd-reference</strong>: toolchain preflight, secret scanning, matrix builds with SBOMs, one required gate, and a watchdog that opens an issue when the newest commit on main was never tested.</span></li>
+        <li><b class="l">my lab</b><span><strong>sre-runbooks</strong>: on-call runbooks that each state how they were verified; CI rejects one with a missing section.</span></li>
       </ul>
       <div class="lesson"><b>Learned</b>Cancelling in-progress CI runs keeps main fast but can leave the newest commit untested. That is why the watchdog exists.</div>
       <div class="links"><a href="https://github.com/aryankasraee/ci-cd-reference">ci-cd-reference →</a><a href="https://github.com/aryankasraee/sre-runbooks">sre-runbooks →</a></div>
@@ -454,7 +466,7 @@ footer { position: relative; z-index: 1; padding: 0 20px 40px; max-width: 1280px
     </div>
   </section>
 </main>
-<footer>Production facts come from my work at Classeh. Lab numbers come from the drills in the linked repositories, where each README shows how they were measured.</footer>
+<footer>"At work" facts come from the roles listed under Career. "My lab" numbers come from drills in my public repositories, where each README shows how they were measured.</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 <script>
@@ -604,16 +616,16 @@ const JOURNEY = (() => {
   const segs = [...document.querySelectorAll("#wf .seg")];
   const HOPS = [
     [0.2, "client", "You type the address and press <strong>Enter</strong>. The browser checks its own cache first."],
-    [1.0, "dns", "<strong>DNS, 82.8 ms.</strong> A resolver asks the root, then <strong>.ir</strong>, then the authoritative server. For school domains, that last one is the <strong>PowerDNS</strong> I run."],
+    [1.0, "dns", "<strong>DNS, 82.8 ms.</strong> A resolver asks the root, then <strong>.ir</strong>, then the authoritative server. For the domains I host, that last one is a <strong>PowerDNS</strong> server I run."],
     [4.6, "tcp", "<strong>TCP, 1.0 ms.</strong> The browser connects to the nearest <strong>CDN edge</strong>."],
-    [5.0, "tls", "<strong>TLS, 7.4 ms.</strong> The edge reads the hostname and presents that school's own <strong>certificate</strong>."],
+    [5.0, "tls", "<strong>TLS, 7.4 ms.</strong> The edge reads the hostname and presents that site's own <strong>certificate</strong>, issued automatically."],
     [6.0, "origin", "<strong>Origin.</strong> On a cache miss the CDN forwards to my <strong>nginx</strong>, which routes by hostname into <strong>Kubernetes</strong>."],
     [7.6, "data", "<strong>Data.</strong> The app reads from the <strong>replicated database</strong> and answers."],
     [8.6, "reply", "<strong>Response, 7.7 ms to first byte.</strong> The page travels back the same way and the browser draws it."],
     [11.2, "watch", "<strong>Monitoring.</strong> Every 15 seconds my blackbox exporter replays this exact path through the CDN and alerts if any hop slows down."]
   ];
   const hops = $("#hops"), btn = $("#req-btn"), urlEl = $("#url-text");
-  const URL = "https://school.example";
+  const URL = "https://site.example";
   const listeners = [];
   let running = false, ran = false, shown = -1;
   function render(t, final) {
@@ -1092,11 +1104,11 @@ window.addEventListener("scroll", highlightNav, { passive: true }); highlightNav
   };
   const client = new T.Group();
   const lapBase = new T.Mesh(new T.BoxGeometry(7, .3, 4.6), metal(0x1a2730)); lapBase.position.y = .15; client.add(lapBase);
-  const lapScreen = new T.Mesh(new T.PlaneGeometry(6.6, 4.1), new T.MeshBasicMaterial({ map: screenTex(660, 410, "school.example") }));
+  const lapScreen = new T.Mesh(new T.PlaneGeometry(6.6, 4.1), new T.MeshBasicMaterial({ map: screenTex(660, 410, "site.example") }));
   const lapLid = new T.Mesh(new T.BoxGeometry(7, 4.5, .18), metal(0x1a2730));
   lapLid.position.set(0, 2.4, -2.25); lapLid.rotation.x = -.18; lapScreen.position.set(0, 0, .1); lapLid.add(lapScreen); client.add(lapLid);
   const phone = new T.Mesh(new T.BoxGeometry(1.5, 3, .16), metal(0x1a2730));
-  const phoneScr = new T.Mesh(new T.PlaneGeometry(1.32, 2.7), new T.MeshBasicMaterial({ map: screenTex(264, 540, "school.example") }));
+  const phoneScr = new T.Mesh(new T.PlaneGeometry(1.32, 2.7), new T.MeshBasicMaterial({ map: screenTex(264, 540, "site.example") }));
   phoneScr.position.z = .09; phone.add(phoneScr); phone.position.set(5.6, 1.6, .4); phone.rotation.y = -.35; client.add(phone);
   const clientGlow = glow(COL.cyan, 16, .25); clientGlow.position.set(0, 2.5, -1); client.add(clientGlow);
   client.position.set(-82, 0, 0); client.rotation.y = -Math.PI / 2 + .3; client.scale.setScalar(1.5); scene.add(client);
